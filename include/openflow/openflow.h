@@ -325,6 +325,7 @@ OFP_ASSERT(sizeof(struct ofp_packet_in) == 20);
 
 enum ofp_action_type {
     OFPAT_OUTPUT,           /* Output to switch port. */
+    OFPAT_ENQUEUE,          /* Output to queue.  */
     OFPAT_SET_VLAN_VID,     /* Set the 802.1q VLAN id. */
     OFPAT_SET_VLAN_PCP,     /* Set the 802.1q priority. */
     OFPAT_STRIP_VLAN,       /* Strip the 802.1q header. */
@@ -678,6 +679,11 @@ enum ofp_stats_types {
      * The reply body is an array of struct ofp_port_stats. */
     OFPST_PORT,
 
+    /* Queue statistics for a port */
+     * The request body is a uint16_t defining the port.
+     * The reply body is a struct ofp_queue_stats */
+    OFPST_QUEUE,
+
     /* Vendor extension.
      * The request and reply bodies begin with a 32-bit vendor ID, which takes
      * the same form as in "struct ofp_vendor_header".  The request and reply
@@ -819,5 +825,29 @@ struct ofp_vendor_header {
     /* Vendor-defined arbitrary additional data. */
 };
 OFP_ASSERT(sizeof(struct ofp_vendor_header) == 12);
+
+/* Action structure for OFPAT_ENQUEUE, which sends packets out 'port' and 'queue'.  */
+struct ofp_action_enqueue {
+  uint16_t type;                         /* OFPAT_ENQUEUE */
+  uint16_t len;                          /* len is 12 */    
+  uint16_t port;                         /* port that queue belongs */
+  uint64_t queue_id;                     /* where to enqueue the packets */
+  uint8_t pad[2];                        /* align to 64-bits */
+};
+OFP_ASSERT(sizeof(struct ofp_action_enqueue) == 12);
+
+struct ofp_queue_stats_request {
+  uint16_t port_no;    /* all ports if OFPT_NONE */
+  uint64_t queue_id;   /* all queues if OFPTE */
+};
+
+struct ofp_queue_stats {
+    uint16_t port_no;
+    uint64_t queue_id;      /* queue id */
+    uint8_t pad[2];          /* Align to 64-bits. */
+    uint64_t tx_bytes;       /* Number of transmitted bytes. */
+    uint64_t tx_packets;     /* Number of transmitted packets. */
+    uint64_t tx_error;     /* Number of packets dropped due to overrun. */
+};
 
 #endif /* openflow/openflow.h */

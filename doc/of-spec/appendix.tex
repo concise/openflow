@@ -45,6 +45,15 @@ The \verb|curr|, \verb|advertised|, \verb|supported|, and \verb|peer| fields ind
 \input{enum/ofp_port_features}
 Multiple of these flags may be set simultaneously.
 
+\subsubsection{\qosupd{Queue Structures}}
+\label{cts:qos}
+\qosupd{An OpenFlow switch supports limited QoS through a simple queuing
+mechanism. A queue is attached to a port and can be used to map flows
+on it. Flows that are mapped to a specific queue inherit its
+characteristics based on queue's configuration. Configuration of a
+queue takes place outside the OpenFlow protocol, either through the
+command line or through an external dedicated configuration protocol.}
+
 \subsubsection{Flow Match Structures}
 When describing a flow entry, the following structure is used:
 
@@ -60,7 +69,7 @@ The source and destination netmasks are each specified with a 6-bit number in th
 A number of actions may be associated with flows or packets.  The currently defined action types are:
 
 \input{enum/ofp_action_type} 
-Output actions are described in Section \ref{ft:actions}, while Field-Modify actions are described in Table \ref{table:field modify actions}.  An action definition contains the action type, length, and any associated data:
+Output \qosupd{and enqueue} actions are described in Section \ref{ft:actions}, while Field-Modify actions are described in Table \ref{table:field modify actions}.  An action definition contains the action type, length, and any associated data:
 
 \input{struct/ofp_action_header}
 An \verb|action_output| has the following fields:
@@ -68,6 +77,14 @@ An \verb|action_output| has the following fields:
 \input{struct/ofp_action_output}
 The \verb|max_len| indicates the maximum amount of data from a packet that should be sent when the port is \verb|OFPP_CONTROLLER|.  If \verb|max_len| is zero, the switch must send a zero-size \verb|packet_in| message.  The \verb|port| specifies the physical port from which packets should be sent. 
  \\\\
+\qosupd{The enqueue action is used to map a flow to a queue, where we assume
+  that the queue is already configured. ACTION\_ENQUEUE directly
+  associates the flow with the specific queue and override any
+  behavior that might be associated with TOS or VLAN\_PCP bits.
+\\\\
+The enqueue action has the following fields:}
+
+\qosupd{\input{struct/ofp_action_enqueue}}
 An \verb|action_vlan_vid| has the following fields:
 
 \input{struct/ofp_action_vlan_vid}
@@ -238,6 +255,19 @@ The body of the reply consists of an array of the following:
 
 \input{struct/ofp_port_stats}
 The switch should return a value of -1 for unavailable counters.
+
+\paragraph{\qosupd{Queue Statistics}}
+\qosupd{Information about queues is requested with OFPST\_QUEUE stats request
+type. The request body consists of a uint16\_t port\_no field
+identifying the port and a 64-bit identifier for the queue. OFPT\_NONE
+refers to all ports, while UINT64\_MAX refers to all queues configured
+at a port. 
+
+\input{struct/ofp_queue_stats_request}
+The body of the reply consists of an array of
+the following structure:
+
+\input{struct/ofp_queue_stats}}
 
 \paragraph{Vendor Statistics}
 Vendor-specific stats messages are requested with the \verb|OFPST_VENDOR| stats type. The first four bytes of the message are the vendor identifier. The rest of the body is vendor-defined.
