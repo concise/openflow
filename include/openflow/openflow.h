@@ -67,6 +67,8 @@
 #define OFP_MAX_TABLE_NAME_LEN 32
 #define OFP_MAX_PORT_NAME_LEN  16
 
+#define OFP_FLOW_COOKIE_LEN 16
+
 #define OFP_TCP_PORT  6633
 #define OFP_SSL_PORT  6633
 
@@ -545,6 +547,7 @@ enum ofp_flow_mod_flags {
 struct ofp_flow_mod {
     struct ofp_header header;
     struct ofp_match match;      /* Fields to match */
+    uint8_t cookie[OFP_FLOW_COOKIE_LEN]; /* Opaque data field */
 
     /* Flow actions. */
     uint16_t command;             /* One of OFPFC_*. */
@@ -563,7 +566,7 @@ struct ofp_flow_mod {
                                             from the length field in the
                                             header. */
 };
-OFP_ASSERT(sizeof(struct ofp_flow_mod) == 68);
+OFP_ASSERT(sizeof(struct ofp_flow_mod) == 84);
 
 /* Why was this flow removed? */
 enum ofp_flow_removed_reason {
@@ -576,6 +579,7 @@ enum ofp_flow_removed_reason {
 struct ofp_flow_removed {
     struct ofp_header header;
     struct ofp_match match;   /* Description of fields. */
+    uint8_t cookie[OFP_FLOW_COOKIE_LEN]; /* Opaque data field */
 
     uint16_t priority;        /* Priority level of flow entry. */
     uint8_t reason;           /* One of OFPRR_*. */
@@ -587,7 +591,7 @@ struct ofp_flow_removed {
     uint64_t packet_count;
     uint64_t byte_count;
 };
-OFP_ASSERT(sizeof(struct ofp_flow_removed) == 80);
+OFP_ASSERT(sizeof(struct ofp_flow_removed) == 96);
 
 /* Values for 'type' in ofp_error_message.  These values are immutable: they
  * will not change in future versions of the protocol (although new values may
@@ -735,6 +739,7 @@ struct ofp_flow_stats {
     uint8_t table_id;         /* ID of table flow came from. */
     uint8_t pad;
     struct ofp_match match;   /* Description of fields. */
+    uint8_t cookie[OFP_FLOW_COOKIE_LEN]; /* Opaque data field */
     uint32_t duration;        /* Time flow has been alive in seconds. */
     uint16_t priority;        /* Priority of the entry. Only meaningful
                                  when this is not an exact-match entry. */
@@ -745,7 +750,7 @@ struct ofp_flow_stats {
     uint64_t byte_count;      /* Number of bytes in flow. */
     struct ofp_action_header actions[0]; /* Actions. */
 };
-OFP_ASSERT(sizeof(struct ofp_flow_stats) == 72);
+OFP_ASSERT(sizeof(struct ofp_flow_stats) == 88);
 
 /* Body for ofp_stats_request of type OFPST_AGGREGATE. */
 struct ofp_aggregate_stats_request {
