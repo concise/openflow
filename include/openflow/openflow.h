@@ -126,6 +126,9 @@ enum ofp_type {
     /* Barrier messages. */
     OFPT_BARRIER_REQUEST,     /* Controller/switch message */
     OFPT_BARRIER_REPLY        /* Controller/switch message */
+
+    /** Neighbor discovery messages */
+    OFPT_NEIGHBOR_MSG         /* Async message */
 };
 
 /* Header on all OpenFlow packets. */
@@ -322,6 +325,18 @@ struct ofp_packet_in {
                                sizeof(struct ofp_packet_in) - 2. */
 };
 OFP_ASSERT(sizeof(struct ofp_packet_in) == 20);
+
+/* Neighbor event on port (datapath -> controller). */
+struct ofp_neighbor_msg {
+    struct ofp_header header;
+    uint8_t activity;               /* Neighbor discovered or disconnected */
+    uint16_t in_port;               /* Port on which neighbor is/was connected */
+    uint64_t neighbor_datapath_id;  /* Datapath id of neighbor */
+    uint16_t neighbor_port;         /* Port on neighbor connected to this switch */
+    uint8_t max_miss_interval;      /* Interval for which no LLDP is seen
+				       before switch is considered disconnected */
+};
+OFP_ASSERT(sizeof(struct ofp_neighbor_msg) == 24);
 
 enum ofp_action_type {
     OFPAT_OUTPUT,           /* Output to switch port. */

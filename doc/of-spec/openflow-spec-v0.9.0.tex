@@ -390,7 +390,9 @@ Each flow entry has an \verb|idle_timeout| and a \verb|hard_timeout| associated 
 
 \subsection{Neighbor Discovery}
 
-OpenFlow switches should supports neighbor discovery via Link Layer Discovery Protocol (LLDP) as a default mechanism for link discovery between OpenFlow switches.  This includes the sending of LLDP packets/probes to discover new link and a disconnection.  The probe should be of a reserved Ethernet type with the datapath id and switch port number in the payload.  OpenFlow switches are expected to intercept these probes and trigger the appropriate link up and link down events.  The intervals between probing for a new link or a disconnection should be independently configured.  Alternative mechanisms to replace this default should ideally be user configurable, but is beyond the scope of this specification.
+OpenFlow switches should supports neighbor discovery via Link Layer Discovery Protocol (LLDP) as a default mechanism for link discovery between OpenFlow switches.  This includes the sending of LLDP packets/probes to discover new neighbor and/or its absence.  Alternative mechanisms to replace this default should ideally be user configurable, but is beyond the scope of this specification.
+
+A neighbor is declared as discovered when a LLDP packet from it is received.  It is considered to be disconnected when no LLDP is received for \verb|max_miss_interval| as configured at the sending switch.  The probe should be of a reserved Ethernet type with the datapath id and switch port number in the payload.  OpenFlow switches are expected to intercept these probes and send the appropriate neighbor message if applicable.  The intervals between probing for a new neighbor (\verb|neighbor_probe_new_interval|) or its disconnection (\verb|neighbor_probe_active_interval|) should be independently configured.  
 
 \input{appendix}
  
