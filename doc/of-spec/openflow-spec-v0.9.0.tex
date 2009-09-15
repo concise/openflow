@@ -388,6 +388,10 @@ Emergency flow mod messages must have timeout values set to zero.  Otherwise, th
 
 Each flow entry has an \verb|idle_timeout| and a \verb|hard_timeout| associated with it.  If no packet has matched the rule in the last \verb|idle_timeout| seconds, or it has been \verb|hard_timeout| seconds since the flow was inserted, the switch removes the entry and sends a flow removed message.  In addition, the controller is able to actively remove entries by sending a flow message with the \verb|DELETE| or \verb|DELETE_STRICT| command.  Like the message used to add the entry, a removal message contains a description, which may include wild cards.
 
+\subsection{Neighbor Discovery}
+
+OpenFlow switches should supports neighbor discovery via Link Layer Discovery Protocol (LLDP) as a default mechanism for link discovery between OpenFlow switches.  This includes the sending of LLDP packets/probes to discover new link and a disconnection.  The probe should be of a reserved Ethernet type with the datapath id and switch port number in the payload.  OpenFlow switches are expected to intercept these probes and trigger the appropriate link up and link down events.  The intervals between probing for a new link or a disconnection should be independently configured.  Alternative mechanisms to replace this default should ideally be user configurable.
+
 \input{appendix}
  
 \end{document} 
