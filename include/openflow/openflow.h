@@ -64,6 +64,7 @@
  */
 #define OFP_VERSION   0x98
 
+#define OFP_MAX_DATAPATH_NAME_LEN 32
 #define OFP_MAX_TABLE_NAME_LEN 32
 #define OFP_MAX_PORT_NAME_LEN  16
 
@@ -249,6 +250,11 @@ struct ofp_switch_features {
                                a MAC address, while the upper 16-bits are
                                implementer-defined. */
 
+    char datapath_name[OFP_MAX_DATAPATH_NAME_LEN];   /* Datapath name. No
+                                                        requirement that it be
+                                                        unique, but it is
+                                                        desirable. */
+
     uint32_t n_buffers;     /* Max packets buffered at once. */
 
     uint8_t n_tables;       /* Number of tables supported by datapath. */
@@ -263,7 +269,7 @@ struct ofp_switch_features {
                                       is inferred from the length field in
                                       the header. */
 };
-OFP_ASSERT(sizeof(struct ofp_switch_features) == 32);
+OFP_ASSERT(sizeof(struct ofp_switch_features) == 64);
 
 /* What changed about the physical port */
 enum ofp_port_reason {
