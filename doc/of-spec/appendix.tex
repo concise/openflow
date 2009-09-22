@@ -80,7 +80,10 @@ The \verb|max_len| indicates the maximum amount of data from a packet that shoul
 \qosupd{The enqueue action is used to map a flow to a queue, where we assume
   that the queue is already configured. ACTION\_ENQUEUE directly
   associates the flow with the specific queue and override any
-  behavior that might be associated with TOS or VLAN\_PCP bits.
+  behavior that might be associated with TOS or VLAN\_PCP bits. 
+  The packet should not change after to an enqueue action. If the switch
+  needs to set TOS/PCP bits for internal handling, the original values
+  should be restored before sending the packet out. 
 \\\\
 The enqueue action has the following fields:}
 
