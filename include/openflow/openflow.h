@@ -831,19 +831,19 @@ struct ofp_action_enqueue {
   uint16_t type;                         /* OFPAT_ENQUEUE */
   uint16_t len;                          /* len is 12 */    
   uint16_t port;                         /* port that queue belongs */
-  uint64_t queue_id;                     /* where to enqueue the packets */
-  uint8_t pad[2];                        /* align to 64-bits */
+  uint8_t pad[2];                        /* pad for 64-bit alignment */
+  uint32_t queue_id;                     /* where to enqueue the packets */
 };
 OFP_ASSERT(sizeof(struct ofp_action_enqueue) == 12);
 
 struct ofp_queue_stats_request {
   uint16_t port_no;    /* all ports if OFPT_NONE */
-  uint64_t queue_id;   /* all queues if OFPTE */
+  uint32_t queue_id;   /* all queues if OFPTE */
 };
 
 struct ofp_queue_stats {
     uint16_t port_no;
-    uint64_t queue_id;      /* queue id */
+    uint32_t queue_id;      /* queue id */
     uint8_t pad[2];          /* Align to 64-bits. */
     uint64_t tx_bytes;       /* Number of transmitted bytes. */
     uint64_t tx_packets;     /* Number of transmitted packets. */
