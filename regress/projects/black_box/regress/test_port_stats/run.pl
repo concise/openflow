@@ -18,20 +18,38 @@ sub my_test {
 		
 	# for each port, 
 
-	my $hdr_args = {
-		version => get_of_ver(),
-		type    => $enums{'OFPT_STATS_REQUEST'},
-		length  => $ofp->sizeof('ofp_stats_request'),        # should generate automatically!
-		xid     => 0x00000000
+	my $hdr_args1 = {
+	    version => get_of_ver(),
+	    type => $enums{'OFPT_STATS_REQUEST'},
+	    length => $ofp->sizeof('ofp_stats_request'), # should generate automatically!
+	    xid => 0x00000000
+	};
+	my $hdr_args2 = {
+	    version => get_of_ver(),
+	    type => $enums{'OFPT_STATS_REQUEST'},
+	    length => $ofp->sizeof('ofp_stats_request') + $ofp->sizeof('ofp_port_stats_request'), # should generate automatically!
+	    xid => 0x00000000
 	};
 
-	my $stats_request_args = {
-		header        => $hdr_args,
-		type          => $enums{'OFPST_PORT'},
-		flags		  => 0
+	my $stats_request_args1 = {
+	    header => $hdr_args1,
+	    type => $enums{'OFPST_PORT'},
+	    flags => 0
+	};
+	my $stats_request_args2 = {
+	    header => $hdr_args2,
+	    type => $enums{'OFPST_PORT'},
+	    flags => 0
 	};
 
-	my $stats_request = $ofp->pack( 'ofp_stats_request', $stats_request_args );
+	my $stats_request_body_args = {
+	    port_no => $enums{'OFPP_NONE'},,
+	};
+
+	my $stats_request1 = $ofp->pack('ofp_stats_request', $stats_request_args1);
+	my $stats_request2_head = $ofp->pack('ofp_stats_request', $stats_request_args2);
+	my $stats_request2_body = $ofp->pack('ofp_port_stats_request', $stats_request_body_args);
+	my $stats_request2 = $stats_request2_head . $stats_request2_body;
 
 	my $reply_hdr_args = {
 		version => get_of_ver(),
@@ -74,7 +92,7 @@ sub my_test {
 	my $stats_reply = $ofp->pack( 'ofp_stats_reply', $stats_reply_args ) . $reply_body;
 	
 	# Send 'stats_request' message
-	print $sock $stats_request;
+	print $sock $stats_request1;
 
 	# Should add timeout here - will crash if no reply
 	my $recvd_mesg;
@@ -110,7 +128,7 @@ sub my_test {
 	# TODO: Look at each received port_stats field, to ensure correct counters
 	
 	# Send 'stats_request' message
-	print $sock $stats_request;
+	print $sock $stats_request2;
 
 	# Should add timeout here - will crash if no reply
 	my $recvd_mesg;
@@ -118,4 +136,3 @@ sub my_test {
 }
 
 run_black_box_test( \&my_test, \@ARGV );
-

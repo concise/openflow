@@ -230,7 +230,7 @@ usage(void)
            "  dump-desc SWITCH            print switch description\n"
            "  dump-tables SWITCH          print table stats\n"
            "  mod-port SWITCH IFACE ACT   modify port behavior\n"
-           "  dump-ports SWITCH           print port statistics\n"
+           "  dump-ports SWITCH [PORT]    print port statistics\n"
            "  dump-flows SWITCH           print all flow entries\n"
            "  dump-flows SWITCH FLOW      print matching FLOWs\n"
            "  dump-aggregate SWITCH       print aggregate flow statistics\n"
@@ -1244,9 +1244,46 @@ do_monitor(const struct settings *s UNUSED, int argc UNUSED, char *argv[])
 }
 
 static void
-do_dump_ports(const struct settings *s UNUSED, int argc UNUSED, char *argv[])
+str_to_port(char *string, uint16_t *req_port)
 {
-    dump_trivial_stats_transaction(argv[1], OFPST_PORT);
+    char *save_ptr = NULL;
+    char *name = NULL;
+
+    if (req_port) {
+        *req_port = OFPP_NONE;
+    }
+
+    for (name = strtok_r(string, "=, \t\r\n", &save_ptr); name;
+         name = strtok_r(NULL, "=, \t\r\n", &save_ptr)) {
+         char *value;
+
+        value = strtok_r(NULL, ", \t\r\n", &save_ptr);
+        if (!value) {
+            ofp_fatal(0, "field %s missing value", name);
+        }
+        if (req_port && !strcmp(name, "port")) {
+            *req_port = atoi(value);
+        }
+    }
+}
+
+static void
+do_dump_ports(const struct settings *s UNUSED, int argc, char *argv[])
+{
+    struct ofp_port_stats_request *psr;
+    struct ofpbuf *buf;
+
+    if (argc < 2) {
+        dump_trivial_stats_transaction(argv[1], OFPST_PORT);
+        return;
+    }
+
+    psr = alloc_stats_request(sizeof(*psr), OFPST_PORT, &buf);
+    str_to_port(argc > 2 ? argv[2] : "", &psr->port_no);
+    psr->port_no = htons(psr->port_no);
+    psr->pad1 = 0;
+    psr->pad2 = 0;
+    dump_stats_transaction(argv[1], buf);
 }
 
 static void
@@ -1531,7 +1568,7 @@ static struct command all_commands[] = {
     { "add-flows", 2, 2, do_add_flows },
     { "mod-flows", 2, 2, do_mod_flows },
     { "del-flows", 1, 2, do_del_flows },
-    { "dump-ports", 1, 1, do_dump_ports },
+    { "dump-ports", 1, 2, do_dump_ports },
     { "mod-port", 3, 3, do_mod_port },
     { "probe", 1, 1, do_probe },
     { "ping", 1, 2, do_ping },

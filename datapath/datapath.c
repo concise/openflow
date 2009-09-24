@@ -1608,6 +1608,7 @@ static int table_stats_dump(struct datapath *dp, void *state,
 
 struct port_stats_state {
 	int port;
+	int req_port;
 };
 
 static int port_stats_init(struct datapath *dp, const void *body, int body_len,
@@ -1616,53 +1617,99 @@ static int port_stats_init(struct datapath *dp, const void *body, int body_len,
 	struct port_stats_state *s = kmalloc(sizeof *s, GFP_ATOMIC);
 	if (!s)
 		return -ENOMEM;
-	s->port = 0;
+	if (body_len == 0) {
+		s->port = 1;
+		s->req_port = OFPP_NONE;
+	} else {
+		struct ofp_port_stats_request *psr
+			= (struct ofp_port_stats_request *)body;
+		s->port = 1;
+		s->req_port = ntohs(psr->port_no);
+	}
 	*state = s;
 	return 0;
 }
+
+static void
+dump_port_stats(struct ofp_port_stats *ops, struct net_bridge_port *p)
+{
+	struct net_device_stats *stats;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
+	stats = p->dev->netdev_ops->ndo_get_stats(p->dev);
+#else
+	stats = p->dev->get_stats(p->dev);
+#endif
+	ops->port_no = htons(p->port_no);
+	memset(ops->pad, 0, sizeof ops->pad);
+	ops->rx_packets   = cpu_to_be64(stats->rx_packets);
+	ops->tx_packets   = cpu_to_be64(stats->tx_packets);
+	ops->rx_bytes     = cpu_to_be64(stats->rx_bytes);
+	ops->tx_bytes     = cpu_to_be64(stats->tx_bytes);
+	ops->rx_dropped   = cpu_to_be64(stats->rx_dropped);
+	ops->tx_dropped   = cpu_to_be64(stats->tx_dropped);
+	ops->rx_errors    = cpu_to_be64(stats->rx_errors);
+	ops->tx_errors    = cpu_to_be64(stats->tx_errors);
+	ops->rx_frame_err = cpu_to_be64(stats->rx_frame_errors);
+	ops->rx_over_err  = cpu_to_be64(stats->rx_over_errors);
+	ops->rx_crc_err   = cpu_to_be64(stats->rx_crc_errors);
+	ops->collisions   = cpu_to_be64(stats->collisions);
+}
+
+static struct net_bridge_port *
+lookup_port(struct datapath *dp, uint16_t port_no)
+{
+	return (port_no < DP_MAX_PORTS ? dp->ports[port_no]
+		: port_no == OFPP_LOCAL ? dp->local_port
+		: NULL);
+}
+
 
 static int port_stats_dump(struct datapath *dp, void *state,
 			   void *body, int *body_len)
 {
 	struct port_stats_state *s = state;
-	struct ofp_port_stats *ops;
-	int n_ports, max_ports;
-	int i;
+	struct net_bridge_port *p = NULL;
+	struct ofp_port_stats *ops = NULL;
+	int n_ports = 0;
+	int max_ports = 0;
+	int i = 0;
 
 	max_ports = *body_len / sizeof *ops;
 	if (!max_ports)
 		return -ENOMEM;
 	ops = body;
 
-	n_ports = 0;
-	for (i = s->port; i < DP_MAX_PORTS && n_ports < max_ports; i++) {
-		struct net_bridge_port *p = dp->ports[i];
-		struct net_device_stats *stats;
-		if (!p)
-			continue;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
-		stats = p->dev->netdev_ops->ndo_get_stats(p->dev);
-#else
-		stats = p->dev->get_stats(p->dev);
-#endif
-		ops->port_no = htons(p->port_no);
-		memset(ops->pad, 0, sizeof ops->pad);
-		ops->rx_packets   = cpu_to_be64(stats->rx_packets);
-		ops->tx_packets   = cpu_to_be64(stats->tx_packets);
-		ops->rx_bytes     = cpu_to_be64(stats->rx_bytes);
-		ops->tx_bytes     = cpu_to_be64(stats->tx_bytes);
-		ops->rx_dropped   = cpu_to_be64(stats->rx_dropped);
-		ops->tx_dropped   = cpu_to_be64(stats->tx_dropped);
-		ops->rx_errors    = cpu_to_be64(stats->rx_errors);
-		ops->tx_errors    = cpu_to_be64(stats->tx_errors);
-		ops->rx_frame_err = cpu_to_be64(stats->rx_frame_errors);
-		ops->rx_over_err  = cpu_to_be64(stats->rx_over_errors);
-		ops->rx_crc_err   = cpu_to_be64(stats->rx_crc_errors);
-		ops->collisions   = cpu_to_be64(stats->collisions);
+	if (s->req_port == OFPP_NONE) {
+		for (i = s->port; i < DP_MAX_PORTS && n_ports < max_ports;
+		     i++) {
+			p = dp->ports[i];
+			if (!p)
+				continue;
+			dump_port_stats(ops, p);
+			n_ports++;
+			ops++;
+		}
+		s->port = i;
+		if (dp->local_port) {
+			dump_port_stats(ops, dp->local_port);
+			n_ports++;
+			ops++;
+			s->port = OFPP_LOCAL + 1;
+		}
+	} else {
+		p = lookup_port(dp, s->req_port);
+		if (p == NULL) {
+			goto fin;
+		}
+		dump_port_stats(ops, p);
 		n_ports++;
 		ops++;
+		s->port = s->req_port == OFPP_LOCAL
+			? OFPP_LOCAL + 1 : s->req_port + 1;
 	}
-	s->port = i;
+
+fin:
 	*body_len = n_ports * sizeof *ops;
 	return n_ports >= max_ports;
 }
@@ -1784,7 +1831,7 @@ static const struct stats_type stats[] = {
 	},
 	[OFPST_PORT] = {
 		0,
-		0,
+		sizeof(struct ofp_port_stats_request),
 		port_stats_init,
 		port_stats_dump,
 		port_stats_done
