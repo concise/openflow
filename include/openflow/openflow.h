@@ -826,6 +826,9 @@ struct ofp_vendor_header {
 };
 OFP_ASSERT(sizeof(struct ofp_vendor_header) == 12);
 
+/* All ones is used to indicate all queues in a port (for stats retrieval) */
+#define OFP_QUEUE_NONE      0xffffffff
+
 /* Action structure for OFPAT_ENQUEUE, which sends packets out 'port' and 'queue'.  */
 struct ofp_action_enqueue {
   uint16_t type;                         /* OFPAT_ENQUEUE */
@@ -838,7 +841,7 @@ OFP_ASSERT(sizeof(struct ofp_action_enqueue) == 12);
 
 struct ofp_queue_stats_request {
   uint16_t port_no;    /* all ports if OFPT_NONE */
-  uint32_t queue_id;   /* all queues if OFPTE */
+  uint32_t queue_id;   /* all queues if OFP_QUEUE_NONE */
 };
 
 struct ofp_queue_stats {
