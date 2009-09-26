@@ -846,8 +846,8 @@ struct ofp_queue_stats_request {
 
 struct ofp_queue_stats {
     uint16_t port_no;
+    uint8_t pad[2];          /* Align to 32-bits. */
     uint32_t queue_id;      /* queue id */
-    uint8_t pad[2];          /* Align to 64-bits. */
     uint64_t tx_bytes;       /* Number of transmitted bytes. */
     uint64_t tx_packets;     /* Number of transmitted packets. */
     uint64_t tx_error;     /* Number of packets dropped due to overrun. */
