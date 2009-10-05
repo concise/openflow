@@ -681,7 +681,7 @@ enum ofp_stats_types {
      * The reply body is an array of struct ofp_port_stats. */
     OFPST_PORT,
 
-    /* Queue statistics for a port */
+    /* Queue statistics for a port 
      * The request body is a uint16_t defining the port.
      * The reply body is a struct ofp_queue_stats */
     OFPST_QUEUE,
