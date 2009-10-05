@@ -125,7 +125,7 @@ enum ofp_type {
 
     /* Barrier messages. */
     OFPT_BARRIER_REQUEST,     /* Controller/switch message */
-    OFPT_BARRIER_REPLY        /* Controller/switch message */
+    OFPT_BARRIER_REPLY,       /* Controller/switch message */
 
     /** Neighbor discovery messages */
     OFPT_NEIGHBOR_MSG         /* Async message */
