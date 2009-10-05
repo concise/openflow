@@ -108,6 +108,8 @@ enum ofp_type {
     OFPT_GET_CONFIG_REQUEST,  /* Controller/switch message */
     OFPT_GET_CONFIG_REPLY,    /* Controller/switch message */
     OFPT_SET_CONFIG,          /* Controller/switch message */
+	OFPQ_GET_CONFIG_REQUEST,  /* Controller/switch message */
+	OFPQ_GET_CONFIG_REPLY,    /* Controller/switch message */
 
     /* Asynchronous messages. */
     OFPT_PACKET_IN,           /* Async message */
@@ -827,7 +829,39 @@ struct ofp_vendor_header {
 OFP_ASSERT(sizeof(struct ofp_vendor_header) == 12);
 
 /* All ones is used to indicate all queues in a port (for stats retrieval) */
-#define OFP_QUEUE_NONE      0xffffffff
+#define OFPQ_NONE      0xffffffff
+
+enum ofp_queue_type {
+  OFPQT_MIN  = 0       /* minimum datarate guaranteed */
+                       /* other types should be added here 
+                          (i.e. max rate, precedence, etc) */
+};
+
+/* Full description for a queue */
+struct ofp_queue {
+  uint16_t port_no;         /* number of associated port. */
+  uint8_t pad[2];           /* 32-bit alignment */
+  uint32_t queue_id;        /* id for the specific queue */
+  uint16_t disc;            /* configured discipline - one of OFPQT_ */
+  uint16_t weight;          /* value describing the discipline - link 
+                               percentage for min-rate in 0.1 jiffies*/
+};
+OFP_ASSERT(sizeof(struct ofp_queue) == 12);
+
+/* Query for port queue configuration */
+struct ofp_queue_get_config_request {
+  struct ofp_header header;
+  uint16_t port;         /* port to be gueried */
+  uint8_t pad[2];        /* 32-bit alignment */
+}; 
+
+/* Queue configuration for a given port */
+struct ofp_queue_get_config_reply {
+  struct ofp_header header;
+  uint16_t port;             /* port number */
+  uint8_t pad[2];
+  struct ofp_queue queues[]; /* list of configured queues */
+};
 
 /* Action structure for OFPAT_ENQUEUE, which sends packets out 'port' and 'queue'.  */
 struct ofp_action_enqueue {
@@ -847,10 +881,10 @@ struct ofp_queue_stats_request {
 struct ofp_queue_stats {
     uint16_t port_no;
     uint8_t pad[2];          /* Align to 32-bits. */
-    uint32_t queue_id;      /* queue id */
+    uint32_t queue_id;       /* queue id */
     uint64_t tx_bytes;       /* Number of transmitted bytes. */
     uint64_t tx_packets;     /* Number of transmitted packets. */
-    uint64_t tx_error;     /* Number of packets dropped due to overrun. */
+    uint64_t tx_error;       /* Number of packets dropped due to overrun. */
 };
 
 #endif /* openflow/openflow.h */

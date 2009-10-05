@@ -50,9 +50,25 @@ Multiple of these flags may be set simultaneously.
 \qosupd{An OpenFlow switch supports limited QoS through a simple queuing
 mechanism. A queue is attached to a port and can be used to map flows
 on it. Flows that are mapped to a specific queue inherit its
-characteristics based on queue's configuration. Configuration of a
+characteristics based on queue's configuration. 
+\\\\
+Configuration of a
 queue takes place outside the OpenFlow protocol, either through the
-command line or through an external dedicated configuration protocol.}
+command line or through an external dedicated configuration
+protocol. 
+\\\\
+The controller can query the switch for configured queues
+using the OFPQ\_GET\_CONFIG\_REQUEST :
+\input{struct/ofp_queue_get__config_request}
+The switch replies back with an OFPQ\_GET\_CONFIG\_REPLY, containing
+a list of configured queues.
+\input{struct/ofp_queue_get_config_reply}.
+Each queue belongs to a discipline and is 
+further described by an ofp\_queue structure:
+\input{enum/ofp_queue_type}
+\\\\
+\input{struct/ofp_queue}
+}
 
 \subsubsection{Flow Match Structures}
 When describing a flow entry, the following structure is used:
@@ -84,6 +100,12 @@ The \verb|max_len| indicates the maximum amount of data from a packet that shoul
   The packet should not change after an enqueue action. If the switch
   needs to set TOS/PCP bits for internal handling, the original values
   should be restored before sending the packet out. 
+\\\\
+A switch may support only queues that are tight to specific PCP/TOS
+bits. In that case, we cannot map an arbitrary flow to a specific
+queue, therefore the action ENQUEUE is not supported. The user can
+still use these queues and map
+flows to them by setting the relevant fields (TOS, VLAN-PCP).
 \\\\
 The enqueue action has the following fields:}
 
