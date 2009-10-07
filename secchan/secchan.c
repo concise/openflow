@@ -54,6 +54,7 @@
 #include "in-band.h"
 #include "leak-checker.h"
 #include "list.h"
+#include "neighbordiscovery.h"
 #include "ofpbuf.h"
 #include "openflow/openflow.h"
 #include "packets.h"
@@ -121,6 +122,7 @@ main(int argc, char *argv[])
     struct discovery *discovery;
     struct switch_status *switch_status;
     struct port_watcher *pw;
+    struct neighbor_discovery* ndiscovery;
     int i;
     int retval;
 
@@ -212,6 +214,7 @@ main(int argc, char *argv[])
     port_watcher_start(&secchan, local_rconn, remote_rconn, &pw);
     discovery = s.discovery ? discovery_init(&s, pw, switch_status) : NULL;
     flow_end_start(&secchan, s.netflow_dst, local_rconn, remote_rconn);
+    neighbordiscovery_start(&secchan, local_rconn, remote_rconn, &ndiscovery);
     if (s.enable_stp) {
         stp_start(&secchan, pw, local_rconn, remote_rconn);
     }
