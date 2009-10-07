@@ -1281,8 +1281,7 @@ do_dump_ports(const struct settings *s UNUSED, int argc, char *argv[])
     psr = alloc_stats_request(sizeof(*psr), OFPST_PORT, &buf);
     str_to_port(argc > 2 ? argv[2] : "", &psr->port_no);
     psr->port_no = htons(psr->port_no);
-    psr->pad1 = 0;
-    psr->pad2 = 0;
+    memset(psr->pad, 0, sizeof(psr->pad));
     dump_stats_transaction(argv[1], buf);
 }
 

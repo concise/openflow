@@ -674,7 +674,7 @@ enum ofp_stats_types {
     OFPST_TABLE,
 
     /* Physical port statistics.
-     * The request body is struct empty or ofp_port_stats_request.
+     * The request body is empty or struct ofp_port_stats_request.
      * The reply body is an array of struct ofp_port_stats. */
     OFPST_PORT,
 
@@ -788,8 +788,7 @@ struct ofp_port_stats_request {
     uint16_t port_no;        /* Require matching entries to include this
                                 as an port.  A value of OFPP_NONE
                                 indicates no restriction. */
-    uint16_t pad1;
-    uint32_t pad2;
+    uint8_t pad[6];
 };
 OFP_ASSERT(sizeof(struct ofp_port_stats_request) == 8);
 
