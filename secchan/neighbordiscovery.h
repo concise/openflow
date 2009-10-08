@@ -148,6 +148,13 @@ struct neighbor_discovery
    */
   struct neighbor_probe_payload* payload;
 
+  /** OpenFlow packet buffer
+   */
+  struct ofpbuf* neighbormsg;
+  /** Reference to OpenFlow neighbor message
+   */
+  struct ofp_neighbor_msg* onm;
+
   /** List of neighbors
    */
   struct neighbor neighbors[NEIGHBOR_MAX_NO];

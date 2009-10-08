@@ -90,6 +90,7 @@ static void neighbordiscovery_closing_cb(struct relay *r, void *nd_)
 {
   struct neighbor_discovery* nd = nd_;
   ofpbuf_delete(nd->probe);
+  ofpbuf_delete(nd->neighbormsg);
 }
 
 /** Hook class to declare callback functions.
@@ -124,6 +125,15 @@ void neighbordiscovery_start(struct secchan *secchan,
   nd->idle_probe_interval = NEIGHBOR_DEFAULT_IDLE_INTERVAL;
   nd->active_probe_interval = NEIGHBOR_DEFAULT_ACTIVE_INTERVAL;
   nd->max_miss_interval = NEIGHBOR_MAX_MISS_INTERVAL;
+
+  //Prepack neighbor packet
+  pktsize = sizeof(struct ofp_neighbor_msg);
+  nd->neighbormsg = ofpbuf_new(pktsize);
+  nd->onm = nd->neighbormsg->data;
+  nd->onm->header.version = OFP_VERSION;
+  nd->onm->header.type = OFPT_NEIGHBOR_MSG;
+  nd->onm->header.length = htons(pktsize);
+  nd->onm->header.xid = htons(0);
 
   //Prepack probe packet
   pktsize = sizeof(struct ofp_packet_out)+
