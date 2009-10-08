@@ -48,18 +48,20 @@
 #define NEIGHBOR_DISCOVERY_H 1
 
 #include <sys/time.h>
+#include <net/ethernet.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "secchan.h"
 #include "rconn.h"
 
 /** Maximum number of neighbors tracked.
  */
-#define NEIGHBOR_MAX_NO 255
+#define NEIGHBOR_MAX_NO 64
 
 /** Maximum number of ports tracked.
  */
-#define NEIGHBOR_PORT_MAX_NO 255
+#define NEIGHBOR_PORT_MAX_NO 65536
 
 /** Default interval to send on idle port (in seconds)
  */
@@ -92,10 +94,10 @@ struct neighbor
   struct timeval expiryTime;
 };
 
-/** \brief Probe packet.
+/** \brief Probe packet payload.
  * This is an Ethernet packet with custom payload.
  */
-struct neighbor_probe
+struct neighbor_probe_payload
 {
   /** Out port probe packet is sent (cannot be prepacked).
    */
@@ -118,6 +120,8 @@ struct neighbor_discovery
   /** Connection to remote controller
    */
   struct rconn* remote_rconn;
+
+
   /** Interval between messages for idle port.
    */
   uint8_t idle_probe_interval;
@@ -128,17 +132,33 @@ struct neighbor_discovery
    * Should be greater than active_probe_interval.
    */
   uint8_t max_miss_interval;
-  /** Local rconn
+
+
+  /** Probe relay
    */
-  /** Prepacked probe packet.
+  bool probe_ready;
+  /** Probe packet's buffer
    */
-  struct neighbor_probe probe;
+  struct ofpbuf* probe;
+  /** OpenFlow packet out reference to buffer
+   */
+  struct ofp_packet_out* pktout;
+  /** Ethernet packet reference in packet out
+   */
+  struct ether_header* ethhdr;
+  /** Reference of Ethernet payload
+   */
+  struct neighbor_probe_payload* payload;
+
   /** List of neighbors
    */
   struct neighbor neighbors[NEIGHBOR_MAX_NO];
   /** List of neighbors
    */
   struct timeval portTime[NEIGHBOR_PORT_MAX_NO];
+  /** Maximum port number
+   */
+  uint16_t max_portno;
 };
 
 /** Initialize neighbor discovery
@@ -149,27 +169,5 @@ void neighbordiscovery_start(struct secchan *secchan,
 			     struct rconn *local_rconn, 
 			     struct rconn *remote_rconn,
 			     struct neighbor_discovery** nd_ptr);
-
-/** Periodic checking of port state
- * @param nd pointer to state for neighbor discovery
- */
-static void neighbordiscovery_periodic_cb(void *nd);
-
-/** Callback for local packet
- * @param r reference to relay
- * @param nd pointer to state for neighbor discovery
- */
-static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd);
-
-/** Hook class to declare callback functions.
- */
-static struct hook_class neighbordiscovery_hook_class =
-{
-  neighbordiscovery_local_packet_cb, /* local_packet_cb */
-  NULL,                              /* remote_packet_cb */
-  neighbordiscovery_periodic_cb,     /* periodic_cb */
-  NULL,                              /* wait_cb */
-  NULL,                              /* closing_cb */
-};
 
 #endif
