@@ -58,7 +58,6 @@
 /** Maximum number of neighbors tracked.
  */
 #define NEIGHBOR_MAX_NO 64
-
 /** Maximum number of ports tracked.
  */
 #define NEIGHBOR_PORT_MAX_NO 65536
@@ -66,15 +65,17 @@
 /** Default interval to send on idle port (in seconds)
  */
 #define NEIGHBOR_DEFAULT_IDLE_INTERVAL 8
-
 /** Default interval to send on active port (in seconds)
  */
 #define NEIGHBOR_DEFAULT_ACTIVE_INTERVAL 1
-
 /** Default maximum interval of silence before
  * neighbor is perceived as lost (in seconds)
  */
 #define NEIGHBOR_MAX_MISS_INTERVAL 10
+
+/** OpenFlow LLDP type
+ */
+#define OPENFLOW_LLDP_TYPE 0x88cc
 
 /** Structure to contain information about a neighbor
  */
@@ -140,12 +141,9 @@ struct neighbor_discovery
   /** Probe packet's buffer
    */
   struct ofpbuf* probe;
-  /** OpenFlow packet out reference to buffer
+  /** OpenFlow output action
    */
-  struct ofp_packet_out* pktout;
-  /** Ethernet packet reference in packet out
-   */
-  struct ether_header* ethhdr;
+  struct ofp_action_output* oao;
   /** Reference of Ethernet payload
    */
   struct neighbor_probe_payload* payload;

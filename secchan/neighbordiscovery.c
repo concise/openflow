@@ -7,7 +7,7 @@
 #include "vlog.h"
 
 /** Periodic checking of port state
- * @param nd pointer to state for neighbor discovery
+ * @param nd_ pointer to state for neighbor discovery
  */
 static void neighbordiscovery_periodic_cb(void *nd_)
 {
@@ -17,11 +17,11 @@ static void neighbordiscovery_periodic_cb(void *nd_)
   fprintf(stderr, "periodic: %ld.%.6ld\n", now.tv_sec, now.tv_usec);
 
   //Do not run if no controller is connected
-  /*if (!rconn_is_connected(nd->remote_rconn))
+  if (!rconn_is_connected(nd->remote_rconn))
   {
     VLOG_DBG("Not activated <= no remote controller!");
     return;
-    }*/
+  }
 
   //Check for expired neighbor
   
@@ -33,7 +33,7 @@ static void neighbordiscovery_periodic_cb(void *nd_)
 
 /** Callback for local packet
  * @param r reference to relay
- * @param nd pointer to state for neighbor discovery
+ * @param nd_ pointer to state for neighbor discovery
  */
 static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
 {
@@ -53,8 +53,10 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
   if (oh->type == OFPT_FEATURES_REPLY)
   {
     osf = (struct ofp_switch_features *) oh;
+    nd->payload->datapath_id = osf->datapath_id;
     VLOG_DBG("Received features from switch with dpid %llx",
 	     ntohll(osf->datapath_id)); 
+
     i = (ntohs(oh->length)-sizeof(*osf))/sizeof(*opp);
     opp = osf->ports;
     nd->max_portno = 0;
@@ -79,6 +81,17 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
   return false;
 }
 
+/** Callback for closing.
+ * Delete buffer.
+ * @param r reference to relay
+ * @param nd_ pointer to state for neighbor discovery
+ */
+static void neighbordiscovery_closing_cb(struct relay *r, void *nd_)
+{
+  struct neighbor_discovery* nd = nd_;
+  ofpbuf_delete(nd->probe);
+}
+
 /** Hook class to declare callback functions.
  */
 static struct hook_class neighbordiscovery_hook_class =
@@ -87,7 +100,7 @@ static struct hook_class neighbordiscovery_hook_class =
   NULL,                              /* remote_packet_cb */
   neighbordiscovery_periodic_cb,     /* periodic_cb */
   NULL,                              /* wait_cb */
-  NULL,                              /* closing_cb */
+  neighbordiscovery_closing_cb,      /* closing_cb */
 };
 
 void neighbordiscovery_start(struct secchan *secchan,
@@ -97,6 +110,9 @@ void neighbordiscovery_start(struct secchan *secchan,
 {
   int i;
   struct neighbor_discovery* nd;
+  size_t pktsize;
+  struct ofp_packet_out* pktout;
+  struct ether_header* ethhdr;
 
   //Allocate memory for state
   nd = *nd_ptr = xcalloc(1, sizeof *nd);
@@ -110,10 +126,45 @@ void neighbordiscovery_start(struct secchan *secchan,
   nd->max_miss_interval = NEIGHBOR_MAX_MISS_INTERVAL;
 
   //Prepack probe packet
+  pktsize = sizeof(struct ofp_packet_out)+
+    sizeof(struct ether_header)+
+    sizeof(struct neighbor_probe_payload);
+  nd->probe = ofpbuf_new(pktsize);
+  pktout = nd->probe->data;
+  pktout->header.version = OFP_VERSION;
+  pktout->header.type = OFPT_PACKET_OUT;
+  pktout->header.length = htons(pktsize);
+  pktout->header.xid = htonl(0);
+  pktout->buffer_id = htonl(-1);
+  pktout->in_port=htons(OFPP_NONE);
+  pktout->actions_len = htons(1);
+  nd->oao = (struct ofp_action_output*) pktout->actions;
+  nd->oao->type= htons(OFPAT_OUTPUT);
+  nd->oao->len = htons(8);
+  nd->oao->max_len=0; 
+  ethhdr = (struct ether_header*) (nd->oao+1);
+                           //Use Stanford OUI with zero thereafter
+  ethhdr->ether_shost[0]=0x08;
+  ethhdr->ether_shost[1]=0x00;
+  ethhdr->ether_shost[2]=0x56;
+  ethhdr->ether_shost[3]=0x00;
+  ethhdr->ether_shost[4]=0x00;
+  ethhdr->ether_shost[5]=0x00;
+                           //Use IEEE 802.1AB LLDP multicast ethernet address
+  ethhdr->ether_dhost[0]=0x01;
+  ethhdr->ether_dhost[1]=0x80;
+  ethhdr->ether_dhost[2]=0xC2;
+  ethhdr->ether_dhost[3]=0x00;
+  ethhdr->ether_dhost[4]=0x00;
+  ethhdr->ether_dhost[5]=0x0E;
+                           //Use IEEE 802.1AB ethertype
+  ethhdr->ether_type = htons(OPENFLOW_LLDP_TYPE);
+  nd->payload= (struct neighbor_probe_payload*) (ethhdr+1);
 
   //Use invalid port OFPP_NONE to denote empty entry
   for (i = 0; i < NEIGHBOR_MAX_NO; i++)
     nd->neighbors[i].in_port = OFPP_NONE;
+  
 
   //Register hooks
   add_hook(secchan, &neighbordiscovery_hook_class, nd);
