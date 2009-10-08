@@ -95,6 +95,18 @@ struct neighbor
   struct timeval expiryTime;
 };
 
+/** Structure to contain information about a port.
+ */
+struct port_probe_state
+{
+  /** Number of neighbors.
+   */
+  uint8_t neighbor_no;
+  /** Next time to send probe
+   */
+  struct timeval expiryTime;
+};
+
 /** \brief Probe packet payload.
  * This is an Ethernet packet with custom payload.
  */
@@ -160,13 +172,16 @@ struct neighbor_discovery
   struct neighbor neighbors[NEIGHBOR_MAX_NO];
   /** List of neighbors
    */
-  struct timeval portTime[NEIGHBOR_PORT_MAX_NO];
+  struct port_probe_state port[NEIGHBOR_PORT_MAX_NO];
   /** Maximum port number
    */
   uint16_t max_portno;
 };
 
-/** Initialize neighbor discovery
+/** \brief Initialize neighbor discovery.
+ *
+ * Iniitalize state into the neighbor_discovery.
+ *
  * @param secchan secchan for adding hooks to
  * @param nd_ptr pointer to state for neighbor discovery to populate
  */

@@ -6,13 +6,20 @@
 #define THIS_MODULE VLM_neighbor_discovery
 #include "vlog.h"
 
-/** Periodic checking of port state
+/** \brief Callback for periodic checking.
+ *
+ * The function does the following:
+ * <ul>
+ * <li>Check for neighbor expired</li>
+ * <li>Check for need to probe and send them</li>
+ * <\ul>
+ *
  * @param nd_ pointer to state for neighbor discovery
  */
 static void neighbordiscovery_periodic_cb(void *nd_)
 {
   struct neighbor_discovery* nd = nd_;
-  struct timeval now;
+  struct timeval now, tincrement, tresult;
   gettimeofday(&now, NULL);
   fprintf(stderr, "periodic: %ld.%.6ld\n", now.tv_sec, now.tv_usec);
 
@@ -28,10 +35,19 @@ static void neighbordiscovery_periodic_cb(void *nd_)
 
   //Send probe for port
 
+
+
   VLOG_DBG("End of periodic!\n");
 }
 
-/** Callback for local packet
+/** \brief allback for local packet
+ *
+ * The function does the following:
+ * <ul>
+ * <li>Get feature reply to parse datapath id of switch</li>
+ * <li>Get feature reply to identify valid ports</li>
+ * <\ul>
+ *
  * @param r reference to relay
  * @param nd_ pointer to state for neighbor discovery
  */
@@ -39,7 +55,7 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
 {
   int i, j;
   uint16_t portno;
-  struct timeval now;
+  struct timeval now, tincrement, tresult;
   struct neighbor_discovery* nd = nd_;
   struct ofpbuf *msg = r->halves[HALF_LOCAL].rxbuf;
   struct ofp_header *oh = msg->data;
@@ -60,6 +76,9 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
     i = (ntohs(oh->length)-sizeof(*osf))/sizeof(*opp);
     opp = osf->ports;
     nd->max_portno = 0;
+    tincrement.tv_sec = nd->idle_probe_interval;
+    tincrement.tv_usec = 0;
+    timeradd(&now, &tincrement, &tresult);
     //Iterate each port
     for (j = 0; j < i ; j++)
     {
@@ -69,6 +88,8 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
 	portno = ntohs(opp->port_no);
 	if (nd->max_portno < portno)
 	  nd->max_portno = portno;
+	//Register port
+	nd->port[portno].expiryTime = tresult;
 	VLOG_DBG("Port %u registered", portno);
       }
       opp++;
@@ -81,8 +102,10 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
   return false;
 }
 
-/** Callback for closing.
- * Delete buffer.
+/** \brief Callback for closing.
+ *
+ * Delete OpenFlow buffers
+ *
  * @param r reference to relay
  * @param nd_ pointer to state for neighbor discovery
  */
@@ -172,10 +195,17 @@ void neighbordiscovery_start(struct secchan *secchan,
   nd->payload= (struct neighbor_probe_payload*) (ethhdr+1);
 
   //Use invalid port OFPP_NONE to denote empty entry
+  for (i = 0; i < NEIGHBOR_PORT_MAX_NO; i++)
+  {
+    nd->port[i].neighbor_no = 0;
+    nd->port[i].expiryTime.tv_sec = 0;
+    nd->port[i].expiryTime.tv_usec = 0;
+  }
+
+  //Denote empty port with expiry time of 0
   for (i = 0; i < NEIGHBOR_MAX_NO; i++)
     nd->neighbors[i].in_port = OFPP_NONE;
   
-
   //Register hooks
   add_hook(secchan, &neighbordiscovery_hook_class, nd);
 }
