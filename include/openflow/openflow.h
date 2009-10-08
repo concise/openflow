@@ -831,37 +831,56 @@ OFP_ASSERT(sizeof(struct ofp_vendor_header) == 12);
 /* All ones is used to indicate all queues in a port (for stats retrieval) */
 #define OFPQ_NONE      0xffffffff
 
-enum ofp_queue_type {
-  OFPQT_MIN  = 0       /* minimum datarate guaranteed */
-                       /* other types should be added here 
-                          (i.e. max rate, precedence, etc) */
+enum ofp_queue_properties {
+  OFPQT_NONE = 0,       /* no property defined for queue (default) */
+  OFPQT_MIN,            /* minimum datarate guaranteed */
+                        /* other types should be added here 
+						   (i.e. max rate, precedence, etc) */
 };
+
+/* common description for a queue */
+struct ofp_queue_prop_header {
+  uint16_t property;        /* one of OFPQT_ */
+  uint16_t len;             /* length of property, including this header */
+  uint8_t pad[4];           /* 64-bit alignemnt */
+};
+OFP_ASSERT(sizeof(struct ofp_queue_prop_header) == 8);
+
+/* Min-Rate queue property description */
+struct ofp_queue_prop_min_rate {
+  struct ofp_queue_prop_header prop_header; /* property is OFPQT_MIN, len is 16 */
+  uint16_t value;           /* parameter for the property */
+  uint8_t pad[6];           /* 64-bit alignment */
+};
+OFP_ASSERT(sizeof(struct ofp_queue_prop_min_rate) == 16);
 
 /* Full description for a queue */
 struct ofp_queue {
-  uint16_t port_no;         /* number of associated port. */
-  uint8_t pad[2];           /* 32-bit alignment */
   uint32_t queue_id;        /* id for the specific queue */
-  uint16_t disc;            /* configured discipline - one of OFPQT_ */
-  uint16_t weight;          /* value describing the discipline - link 
-                               percentage for min-rate in 0.1 jiffies*/
+  uint16_t len;          /* length in bytes */
+  uint8_t pad[2];           /* 64-bit alignment */
+  struct ofp_queue_prop_header properties[0]; /* list of properties */
 };
-OFP_ASSERT(sizeof(struct ofp_queue) == 12);
+OFP_ASSERT(sizeof(struct ofp_queue) == 8);
 
 /* Query for port queue configuration */
 struct ofp_queue_get_config_request {
   struct ofp_header header;
-  uint16_t port;         /* port to be gueried */
+  uint16_t port;         /* port to be gueried. */
   uint8_t pad[2];        /* 32-bit alignment */
 }; 
+OFP_ASSERT(sizeof(struct ofp_queue_get_config_request) == 12);
 
-/* Queue configuration for a given port */
+/* Queue configuration for a given port.
+ * If OFPP_ALL is given, the switch sends one
+ * reply for each port */
 struct ofp_queue_get_config_reply {
   struct ofp_header header;
-  uint16_t port;             /* port number */
-  uint8_t pad[2];
+  uint16_t port;
+  uint8_t pad[6];
   struct ofp_queue queues[]; /* list of configured queues */
 };
+OFP_ASSERT(sizeof(struct ofp_queue_get_config_reply) == 16);
 
 /* Action structure for OFPAT_ENQUEUE, which sends packets out 'port' and 'queue'.  */
 struct ofp_action_enqueue {
