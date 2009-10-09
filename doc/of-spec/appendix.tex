@@ -58,16 +58,26 @@ command line or through an external dedicated configuration
 protocol. 
 \\\\
 The controller can query the switch for configured queues
-using the OFPQ\_GET\_CONFIG\_REQUEST :
-\input{struct/ofp_queue_get__config_request}
-The switch replies back with an OFPQ\_GET\_CONFIG\_REPLY, containing
+using the following structure :
+\input{struct/ofp_queue_get_config_request}
+\\\\
+The switch replies back with a  ofp\_queue\_get\_config\_reply command, containing
 a list of configured queues.
-\input{struct/ofp_queue_get_config_reply}.
-Each queue belongs to a discipline and is 
-further described by an ofp\_queue structure:
+\input{struct/ofp_queue_get_config_reply}
+Each queue is further described by a set of properties, each of a
+specific type and configuration.
 \input{enum/ofp_queue_type}
 \\\\
+\input{struct/ofp_queue_prop_header}
+\\\\
 \input{struct/ofp_queue}
+
+Currently, there is only a minimum-rate type queue, described by the
+ofp\_queue\_prop\_min\_rate structure :
+\input{enum/ofp_queue_properties}
+\\\\
+\input{struct/ofp_queue_prop_min_rate}
+\\\\
 }
 
 \subsubsection{Flow Match Structures}
