@@ -68,7 +68,7 @@
 #define NEIGHBOR_DEFAULT_IDLE_INTERVAL 20
 /** Default interval to send on active port (in seconds)
  */
-#define NEIGHBOR_DEFAULT_ACTIVE_INTERVAL 3
+#define NEIGHBOR_DEFAULT_ACTIVE_INTERVAL 2
 /** Minimum probes missed before declaring neighbor is disconnected.
  */
 #define NEIGHBOR_MIN_MISS_PROBE 5
@@ -115,12 +115,12 @@ struct neighbor_probe
   /** OpenFlow packet out header.
    */
   struct ofp_packet_out pktout;
-  /** Ethernet header.
-   */
-  struct ether_header ethhdr;
   /** Packet out action.
    */
   struct ofp_action_output oao;
+  /** Ethernet header.
+   */
+  struct ether_header ethhdr;
   /** Out port probe packet is sent (cannot be prepacked).
    */
   uint16_t outport;

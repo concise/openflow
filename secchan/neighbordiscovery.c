@@ -46,7 +46,8 @@ static void neighbordiscovery_periodic_cb(void *nd_)
 	nd->probe.oao.port = htons(portno);
 	nd->probe.outport = htons(portno);
 	nd->probe.interval = nd->min_miss_probe * \
-	  (nd->port[portno].neighbor_no == 0)?nd->idle_probe_interval: \
+	  (nd->port[portno].neighbor_no == 0)?\
+	  nd->idle_probe_interval:\
 	  nd->active_probe_interval;
 	
 	msg = ofpbuf_new(sizeof(nd->probe));
@@ -90,7 +91,6 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
   struct ofp_phy_port *opp;
 
   gettimeofday(&now, NULL);
-  fprintf(stderr, "packet: %ld.%.6ld\n", now.tv_sec, now.tv_usec);
 
   //Register features reply
   if (oh->type == OFPT_FEATURES_REPLY)
@@ -125,7 +125,8 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
   }
 
   //Update neighbor if LLDP packet is received
-  
+  if (oh->type == OFPT_PACKET_IN)
+    VLOG_DBG("Received packet");
 
   return false;
 }
@@ -173,9 +174,9 @@ void neighbordiscovery_start(struct secchan *secchan,
   nd->probe.pktout.header.xid = htonl(0);
   nd->probe.pktout.buffer_id = htonl(-1);
   nd->probe.pktout.in_port=htons(OFPP_NONE);
-  nd->probe.pktout.actions_len = htons(1);
+  nd->probe.pktout.actions_len = htons(sizeof(nd->probe.oao));
   nd->probe.oao.type= htons(OFPAT_OUTPUT);
-  nd->probe.oao.len = htons(8);
+  nd->probe.oao.len = htons(sizeof(nd->probe.oao));
   nd->probe.oao.max_len=0; 
                            //Use Stanford OUI with zero thereafter
   nd->probe.ethhdr.ether_shost[0]=0x08;
