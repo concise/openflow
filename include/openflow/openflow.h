@@ -848,8 +848,8 @@ OFP_ASSERT(sizeof(struct ofp_queue_prop_header) == 8);
 
 /* Min-Rate queue property description */
 struct ofp_queue_prop_min_rate {
-    struct ofp_queue_prop_header prop_header; /* property is OFPQT_MIN, len is 16 */
-    uint16_t rate;        /* parameter for the property */
+    struct ofp_queue_prop_header prop_header; /* prop: OFPQT_MIN, len: 16 */
+    uint16_t rate;        /* In 1/10 of a percent; >1000 -> disabled */
     uint8_t pad[6];       /* 64-bit alignment */
 };
 OFP_ASSERT(sizeof(struct ofp_queue_prop_min_rate) == 16);
@@ -871,9 +871,8 @@ struct ofp_queue_get_config_request {
 };
 OFP_ASSERT(sizeof(struct ofp_queue_get_config_request) == 12);
 
-/* Queue configuration for a given port.
- * If OFPP_ALL is given, the switch sends one
- * reply for each port */
+/* Queue configuration for a given port. */
+/* If OFPP_ALL is given, the switch sends one reply for each port */
 struct ofp_queue_get_config_reply {
     struct ofp_header header;
     uint16_t port;
@@ -882,7 +881,7 @@ struct ofp_queue_get_config_reply {
 };
 OFP_ASSERT(sizeof(struct ofp_queue_get_config_reply) == 16);
 
-/* Action structure for OFPAT_ENQUEUE, which sends packets out 'port' and 'queue'.  */
+/* OFPAT_ENQUEUE action struct: send packets to given queue on port */
 struct ofp_action_enqueue {
     uint16_t type;            /* OFPAT_ENQUEUE */
     uint16_t len;             /* len is 12 */
@@ -897,6 +896,7 @@ struct ofp_queue_stats_request {
     uint8_t pad[2];          /* Align to 32-bits. */
     uint32_t queue_id;       /* all queues if OFP_QUEUE_NONE */
 };
+OFP_ASSERT(sizeof(struct ofp_queue_stats_request) == 8);
 
 struct ofp_queue_stats {
     uint16_t port_no;
@@ -906,5 +906,6 @@ struct ofp_queue_stats {
     uint64_t tx_packets;     /* Number of transmitted packets. */
     uint64_t tx_error;       /* Number of packets dropped due to overrun. */
 };
+OFP_ASSERT(sizeof(struct ofp_queue_stats) == 32);
 
 #endif /* openflow/openflow.h */
