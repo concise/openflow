@@ -893,8 +893,9 @@ struct ofp_action_enqueue {
 OFP_ASSERT(sizeof(struct ofp_action_enqueue) == 12);
 
 struct ofp_queue_stats_request {
-    uint16_t port_no;    /* all ports if OFPT_NONE */
-    uint32_t queue_id;   /* all queues if OFP_QUEUE_NONE */
+    uint16_t port_no;        /* all ports if OFPT_NONE */
+    uint8_t pad[2];          /* Align to 32-bits. */
+    uint32_t queue_id;       /* all queues if OFP_QUEUE_NONE */
 };
 
 struct ofp_queue_stats {
