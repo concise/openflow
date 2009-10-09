@@ -25,13 +25,23 @@ static void neighbordiscovery_periodic_cb(void *nd_)
 
   gettimeofday(&now, NULL);
   VLOG_DBG("Periodic call at %ld.%.6ld", now.tv_sec, now.tv_usec);
-
+  
   //Do not run if no controller is connected
   if (!rconn_is_connected(nd->remote_rconn))
   {
     VLOG_DBG("Not activated <= no remote controller!");
+    nd->lastcall = now;
     return;
   }
+
+  //Send warning if periodic is too slow
+  timersub(&now, &(nd->lastcall), &tresult);
+  if ((tresult.tv_sec > nd->active_probe_interval) ||
+      (tresult.tv_sec > nd->idle_probe_interval))
+    VLOG_WARN("Consecutive check between after %ld s is greater than "\
+	      "active (%u) and/or idle (%u) intervals => possible failure!",
+	      tresult.tv_sec,
+	      nd->active_probe_interval, nd->idle_probe_interval);
 
   //Check for expired neighbor
   for (i = 0; i < NEIGHBOR_MAX_NO; i++)
@@ -93,6 +103,7 @@ static void neighbordiscovery_periodic_cb(void *nd_)
 	nd->port[portno].expiryTime = tresult;
       }
 
+  nd->lastcall = now;
   VLOG_DBG("End of periodic!");
 }
 
@@ -130,6 +141,7 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
     osf = (struct ofp_switch_features *) oh;
     nd->probe.payload.datapath_id = osf->datapath_id;
     nd->probe_ready = true;
+    nd->lastcall = now;
     VLOG_DBG("Received features from switch with dpid %llx",
 	     ntohll(osf->datapath_id)); 
 

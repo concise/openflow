@@ -163,6 +163,9 @@ struct neighbor_discovery
    * Should be greater than 2.
    */
   uint8_t min_miss_probe;
+  /** Last periodic call
+   */
+  struct timeval lastcall;
 
   /** Probe relay
    */
