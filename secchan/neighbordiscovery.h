@@ -54,6 +54,7 @@
 #include <stdbool.h>
 #include "secchan.h"
 #include "rconn.h"
+#include "openflow/openflow.h"
 
 /** Maximum number of neighbors tracked.
  */
@@ -64,14 +65,13 @@
 
 /** Default interval to send on idle port (in seconds)
  */
-#define NEIGHBOR_DEFAULT_IDLE_INTERVAL 8
+#define NEIGHBOR_DEFAULT_IDLE_INTERVAL 20
 /** Default interval to send on active port (in seconds)
  */
-#define NEIGHBOR_DEFAULT_ACTIVE_INTERVAL 1
-/** Default maximum interval of silence before
- * neighbor is perceived as lost (in seconds)
+#define NEIGHBOR_DEFAULT_ACTIVE_INTERVAL 3
+/** Minimum probes missed before declaring neighbor is disconnected.
  */
-#define NEIGHBOR_MAX_MISS_INTERVAL 10
+#define NEIGHBOR_MIN_MISS_PROBE 5
 
 /** OpenFlow LLDP type
  */
@@ -107,11 +107,20 @@ struct port_probe_state
   struct timeval expiryTime;
 };
 
-/** \brief Probe packet payload.
- * This is an Ethernet packet with custom payload.
+/** \brief Probe packet as OpenFlow packet out.
+ * Embedded packet is an Ethernet packet with custom payload.
  */
-struct neighbor_probe_payload
+struct neighbor_probe
 {
+  /** OpenFlow packet out header.
+   */
+  struct ofp_packet_out pktout;
+  /** Ethernet header.
+   */
+  struct ether_header ethhdr;
+  /** Packet out action.
+   */
+  struct ofp_action_output oao;
   /** Out port probe packet is sent (cannot be prepacked).
    */
   uint16_t outport;
@@ -121,6 +130,7 @@ struct neighbor_probe_payload
   /** Next delivery time.
    */
   uint8_t interval;
+  
 };
 
 /** State for neighbor discovery
@@ -141,31 +151,21 @@ struct neighbor_discovery
   /** Interval between messages for connected port.
    */
   uint8_t active_probe_interval;
-  /** Minimum interval of silence before declaring neighbor is disconnected.
-   * Should be greater than active_probe_interval.
+  /** Minimum probes missed before declaring neighbor is disconnected.
+   * Should be greater than 2.
    */
-  uint8_t max_miss_interval;
-
+  uint8_t min_miss_probe;
 
   /** Probe relay
    */
   bool probe_ready;
-  /** Probe packet's buffer
+  /** Probe packet in OpenFlow packet out
    */
-  struct ofpbuf* probe;
-  /** OpenFlow output action
-   */
-  struct ofp_action_output* oao;
-  /** Reference of Ethernet payload
-   */
-  struct neighbor_probe_payload* payload;
+  struct neighbor_probe probe;
 
-  /** OpenFlow packet buffer
+  /** OpenFlow neighbor message
    */
-  struct ofpbuf* neighbormsg;
-  /** Reference to OpenFlow neighbor message
-   */
-  struct ofp_neighbor_msg* onm;
+  struct ofp_neighbor_msg neighbormsg;
 
   /** List of neighbors
    */
