@@ -44,11 +44,11 @@ static void neighbordiscovery_periodic_cb(void *nd_)
       {
 	//Send probe
 	nd->probe.oao.port = htons(portno);
-	nd->probe.outport = htons(portno);
-	nd->probe.interval = nd->min_miss_probe * \
-	  (nd->port[portno].neighbor_no == 0)?\
-	  nd->idle_probe_interval:\
-	  nd->active_probe_interval;
+	nd->probe.payload.outport = htons(portno);
+	nd->probe.payload.interval = htons(nd->min_miss_probe * \
+					   ((nd->port[portno].neighbor_no == 0)?\
+					   nd->idle_probe_interval:\
+					   nd->active_probe_interval));
 	
 	msg = ofpbuf_new(sizeof(nd->probe));
 	ofpbuf_put(msg, &(nd->probe), sizeof(nd->probe));
@@ -89,6 +89,9 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
   struct ofp_header *oh = msg->data;
   struct ofp_switch_features *osf;
   struct ofp_phy_port *opp;
+  struct ofp_packet_in* opi;
+  struct ether_header* eth;
+  struct neighbor_probe_payload* npp;
 
   gettimeofday(&now, NULL);
 
@@ -96,7 +99,8 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
   if (oh->type == OFPT_FEATURES_REPLY)
   {
     osf = (struct ofp_switch_features *) oh;
-    nd->probe.datapath_id = osf->datapath_id;
+    nd->probe.payload.datapath_id = osf->datapath_id;
+    nd->probe_ready = true;
     VLOG_DBG("Received features from switch with dpid %llx",
 	     ntohll(osf->datapath_id)); 
 
@@ -121,12 +125,24 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
       }
       opp++;
     }
-    nd->probe_ready = true;
   }
 
   //Update neighbor if LLDP packet is received
   if (oh->type == OFPT_PACKET_IN)
-    VLOG_DBG("Received packet");
+  {
+    opi = (struct ofp_packet_in *) oh;
+    eth = (struct ether_header *) opi->data;
+    if (ntohs(eth->ether_type) == OPENFLOW_LLDP_TYPE)
+    {   
+      portno = ntohs(((struct ofp_packet_in *) oh)->in_port);
+      npp = (struct neighbor_probe_payload*) (opi->data+sizeof(*eth));
+      VLOG_DBG("Received LLDP packet in port %u from dpid %llx:%u"\
+	       " to expire after %u seconds.",
+	       portno, ntohll(npp->datapath_id), ntohs(npp->outport),
+	       ntohs(npp->interval));
+      return true;
+    }
+  }
 
   return false;
 }

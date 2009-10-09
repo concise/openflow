@@ -65,7 +65,7 @@
 
 /** Default interval to send on idle port (in seconds)
  */
-#define NEIGHBOR_DEFAULT_IDLE_INTERVAL 20
+#define NEIGHBOR_DEFAULT_IDLE_INTERVAL 12
 /** Default interval to send on active port (in seconds)
  */
 #define NEIGHBOR_DEFAULT_ACTIVE_INTERVAL 2
@@ -107,6 +107,21 @@ struct port_probe_state
   struct timeval expiryTime;
 };
 
+/** \brief Probe packet payload.
+ */
+struct neighbor_probe_payload
+{
+  /** Out port probe packet is sent (cannot be prepacked).
+   */
+  uint16_t outport;
+  /** Datapath id of this switch.
+   */
+  uint64_t datapath_id;
+  /** Minimum time of silence between neighbor is disconnected.
+   */
+  uint16_t interval;
+} __attribute__((packed));
+
 /** \brief Probe packet as OpenFlow packet out.
  * Embedded packet is an Ethernet packet with custom payload.
  */
@@ -121,17 +136,10 @@ struct neighbor_probe
   /** Ethernet header.
    */
   struct ether_header ethhdr;
-  /** Out port probe packet is sent (cannot be prepacked).
+  /** Custom payload
    */
-  uint16_t outport;
-  /** Datapath id of this switch.
-   */
-  uint64_t datapath_id;
-  /** Next delivery time.
-   */
-  uint8_t interval;
-  
-};
+  struct neighbor_probe_payload payload;
+} __attribute__((packed));
 
 /** State for neighbor discovery
  */
