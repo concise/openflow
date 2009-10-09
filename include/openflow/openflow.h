@@ -108,8 +108,8 @@ enum ofp_type {
     OFPT_GET_CONFIG_REQUEST,  /* Controller/switch message */
     OFPT_GET_CONFIG_REPLY,    /* Controller/switch message */
     OFPT_SET_CONFIG,          /* Controller/switch message */
-	OFPQ_GET_CONFIG_REQUEST,  /* Controller/switch message */
-	OFPQ_GET_CONFIG_REPLY,    /* Controller/switch message */
+    OFPT_QUEUE_GET_CONFIG_REQUEST,  /* Controller/switch message */
+    OFPT_QUEUE_GET_CONFIG_REPLY,    /* Controller/switch message */
 
     /* Asynchronous messages. */
     OFPT_PACKET_IN,           /* Async message */
@@ -287,7 +287,7 @@ OFP_ASSERT(sizeof(struct ofp_port_status) == 64);
 struct ofp_port_mod {
     struct ofp_header header;
     uint16_t port_no;
-    uint8_t hw_addr[OFP_ETH_ALEN]; /* The hardware address is not 
+    uint8_t hw_addr[OFP_ETH_ALEN]; /* The hardware address is not
                                       configurable.  This is used to
                                       sanity-check the request, so it must
                                       be the same as returned in an
@@ -419,7 +419,7 @@ struct ofp_action_vendor_header {
 };
 OFP_ASSERT(sizeof(struct ofp_action_vendor_header) == 8);
 
-/* Action header that is common to all actions.  The length includes the 
+/* Action header that is common to all actions.  The length includes the
  * header and any padding used to make the action 64-bit aligned.
  * NB: The length of an action *must* always be a multiple of eight. */
 struct ofp_action_header {
@@ -556,7 +556,7 @@ struct ofp_flow_mod {
     uint16_t priority;            /* Priority level of flow entry. */
     uint32_t buffer_id;           /* Buffered packet to apply to (or -1).
                                      Not meaningful for OFPFC_DELETE*. */
-    uint16_t out_port;            /* For OFPFC_DELETE* commands, require 
+    uint16_t out_port;            /* For OFPFC_DELETE* commands, require
                                      matching entries to include this as an
                                      output port.  A value of OFPP_NONE
                                      indicates no restriction. */
@@ -681,7 +681,7 @@ enum ofp_stats_types {
      * The reply body is an array of struct ofp_port_stats. */
     OFPST_PORT,
 
-    /* Queue statistics for a port 
+    /* Queue statistics for a port
      * The request body is a uint16_t defining the port.
      * The reply body is a struct ofp_queue_stats */
     OFPST_QUEUE,
@@ -778,7 +778,7 @@ OFP_ASSERT(sizeof(struct ofp_aggregate_stats_reply) == 24);
 
 /* Body of reply to OFPST_TABLE request. */
 struct ofp_table_stats {
-    uint8_t table_id;        /* Identifier of table.  Lower numbered tables 
+    uint8_t table_id;        /* Identifier of table.  Lower numbered tables
                                 are consulted first. */
     uint8_t pad[3];          /* Align to 32-bits. */
     char name[OFP_MAX_TABLE_NAME_LEN];
@@ -832,42 +832,42 @@ OFP_ASSERT(sizeof(struct ofp_vendor_header) == 12);
 #define OFPQ_NONE      0xffffffff
 
 enum ofp_queue_properties {
-  OFPQT_NONE = 0,       /* no property defined for queue (default) */
-  OFPQT_MIN,            /* minimum datarate guaranteed */
-                        /* other types should be added here 
-						 * (i.e. max rate, precedence, etc) */
+    OFPQT_NONE = 0,       /* no property defined for queue (default) */
+    OFPQT_MIN,            /* minimum datarate guaranteed */
+                          /* other types should be added here
+		  				   * (i.e. max rate, precedence, etc) */
 };
 
 /* common description for a queue */
 struct ofp_queue_prop_header {
-  uint16_t property;        /* one of OFPQT_ */
-  uint16_t len;             /* length of property, including this header */
-  uint8_t pad[4];           /* 64-bit alignemnt */
+    uint16_t property;    /* one of OFPQT_ */
+    uint16_t len;         /* length of property, including this header */
+    uint8_t pad[4];       /* 64-bit alignemnt */
 };
 OFP_ASSERT(sizeof(struct ofp_queue_prop_header) == 8);
 
 /* Min-Rate queue property description */
 struct ofp_queue_prop_min_rate {
-  struct ofp_queue_prop_header prop_header; /* property is OFPQT_MIN, len is 16 */
-  uint16_t value;           /* parameter for the property */
-  uint8_t pad[6];           /* 64-bit alignment */
+    struct ofp_queue_prop_header prop_header; /* property is OFPQT_MIN, len is 16 */
+    uint16_t rate;        /* parameter for the property */
+    uint8_t pad[6];       /* 64-bit alignment */
 };
 OFP_ASSERT(sizeof(struct ofp_queue_prop_min_rate) == 16);
 
 /* Full description for a queue */
 struct ofp_queue {
-  uint32_t queue_id;        /* id for the specific queue */
-  uint16_t len;          /* length in bytes */
-  uint8_t pad[2];           /* 64-bit alignment */
-  struct ofp_queue_prop_header properties[0]; /* list of properties */
+    uint32_t queue_id;     /* id for the specific queue */
+    uint16_t len;          /* length in bytes */
+    uint8_t pad[2];        /* 64-bit alignment */
+    struct ofp_queue_prop_header properties[0]; /* list of properties */
 };
 OFP_ASSERT(sizeof(struct ofp_queue) == 8);
 
 /* Query for port queue configuration */
 struct ofp_queue_get_config_request {
-  struct ofp_header header;
-  uint16_t port;         /* port to be gueried. */
-  uint8_t pad[2];        /* 32-bit alignment */
+    struct ofp_header header;
+    uint16_t port;         /* port to be gueried. */
+    uint8_t pad[2];        /* 32-bit alignment */
 };
 OFP_ASSERT(sizeof(struct ofp_queue_get_config_request) == 12);
 
@@ -875,26 +875,26 @@ OFP_ASSERT(sizeof(struct ofp_queue_get_config_request) == 12);
  * If OFPP_ALL is given, the switch sends one
  * reply for each port */
 struct ofp_queue_get_config_reply {
-  struct ofp_header header;
-  uint16_t port;
-  uint8_t pad[6];
-  struct ofp_queue queues[]; /* list of configured queues */
+    struct ofp_header header;
+    uint16_t port;
+    uint8_t pad[6];
+    struct ofp_queue queues[]; /* list of configured queues */
 };
 OFP_ASSERT(sizeof(struct ofp_queue_get_config_reply) == 16);
 
 /* Action structure for OFPAT_ENQUEUE, which sends packets out 'port' and 'queue'.  */
 struct ofp_action_enqueue {
-  uint16_t type;                         /* OFPAT_ENQUEUE */
-  uint16_t len;                          /* len is 12 */    
-  uint16_t port;                         /* port that queue belongs */
-  uint8_t pad[2];                        /* pad for 64-bit alignment */
-  uint32_t queue_id;                     /* where to enqueue the packets */
+    uint16_t type;            /* OFPAT_ENQUEUE */
+    uint16_t len;             /* len is 12 */
+    uint16_t port;            /* port that queue belongs */
+    uint8_t pad[2]            /* pad for 64-bit alignment */
+    uint32_t queue_id;        /* where to enqueue the packets */
 };
 OFP_ASSERT(sizeof(struct ofp_action_enqueue) == 12);
 
 struct ofp_queue_stats_request {
-  uint16_t port_no;    /* all ports if OFPT_NONE */
-  uint32_t queue_id;   /* all queues if OFP_QUEUE_NONE */
+    uint16_t port_no;    /* all ports if OFPT_NONE */
+    uint32_t queue_id;   /* all queues if OFP_QUEUE_NONE */
 };
 
 struct ofp_queue_stats {
