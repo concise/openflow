@@ -17,6 +17,7 @@
  */
 static void neighbordiscovery_periodic_cb(void *nd_)
 {
+  int i;
   uint16_t portno;
   struct neighbor_discovery* nd = nd_;
   struct timeval now, tincrement, tresult;
@@ -33,7 +34,34 @@ static void neighbordiscovery_periodic_cb(void *nd_)
   }
 
   //Check for expired neighbor
-  
+  for (i = 0; i < NEIGHBOR_MAX_NO; i++)
+    if ((nd->neighbors[i].in_port != OFPP_NONE) &&
+	(timercmp(&now, &nd->neighbors[i].expiryTime, >=)))
+    {
+      //Send neighbor message
+      nd->neighbormsg.activity = OFPNA_NEIGHBOR_EXPIRED;
+      nd->neighbormsg.in_port = htons(nd->neighbors[i].in_port);
+      nd->neighbormsg.neighbor_datapath_id = htonll(nd->neighbors[i].neighbor_dpid);
+      nd->neighbormsg.neighbor_port = htons(nd->neighbors[i].neighbor_port);
+      msg = ofpbuf_new(sizeof(nd->neighbormsg));
+      ofpbuf_put(msg, &(nd->neighbormsg), sizeof(nd->neighbormsg));
+      rconn_send(nd->remote_rconn, msg, NULL);
+      VLOG_INFO("Send neighbor msg for expired neighbor dpid %llx:%u "\
+		"at port %u",
+		nd->neighbors[i].neighbor_dpid,
+		nd->neighbors[i].neighbor_port,
+		nd->neighbors[i].in_port);
+      
+      //Remove neighbor from record
+      if (nd->port[nd->neighbors[i].in_port].neighbor_no == 0)
+	VLOG_WARN("Removing neighbor when there is none!");
+      else
+	nd->port[nd->neighbors[i].in_port].neighbor_no--;
+      nd->neighbors[i].in_port = OFPP_NONE;
+      nd->neighbors[i].expiryTime = now;
+      VLOG_DBG("Neighbor at index %i deleted", i);
+    }
+  VLOG_DBG("Checked neighbors");
 
   //Send probe for port
   if (nd->probe_ready && rconn_is_connected(nd->local_rconn))
@@ -82,7 +110,8 @@ static void neighbordiscovery_periodic_cb(void *nd_)
 static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
 {
   int i, j;
-  uint16_t portno;
+  uint16_t portno, neighborport;
+  uint64_t dpid;
   struct timeval now, tincrement, tresult;
   struct neighbor_discovery* nd = nd_;
   struct ofpbuf *msg = r->halves[HALF_LOCAL].rxbuf;
@@ -104,9 +133,18 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
     VLOG_DBG("Received features from switch with dpid %llx",
 	     ntohll(osf->datapath_id)); 
 
+    //Reset all port
+    nd->max_portno = 0;
+    //Use invalid port OFPP_NONE to denote empty entry
+    for (i = 0; i < NEIGHBOR_PORT_MAX_NO; i++)
+    {
+      nd->port[i].neighbor_no = 0;
+      nd->port[i].expiryTime.tv_sec = 0;
+      nd->port[i].expiryTime.tv_usec = 0;
+    }
+
     i = (ntohs(oh->length)-sizeof(*osf))/sizeof(*opp);
     opp = osf->ports;
-    nd->max_portno = 0;
     tincrement.tv_sec = nd->idle_probe_interval;
     tincrement.tv_usec = 0;
     timeradd(&now, &tincrement, &tresult);
@@ -132,14 +170,67 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
   {
     opi = (struct ofp_packet_in *) oh;
     eth = (struct ether_header *) opi->data;
-    if (ntohs(eth->ether_type) == OPENFLOW_LLDP_TYPE)
-    {   
+    if (ntohs(eth->ether_type) == OPENFLOW_LLDP_TYPE &&
+	eth->ether_shost[0]==0x08 &&
+	eth->ether_shost[1]==0x00 &&
+	eth->ether_shost[2]==0x56 &&
+	eth->ether_shost[3]==0x00 &&
+	eth->ether_shost[4]==0x00 &&
+	eth->ether_shost[5]==0x00) // Check also Stanford OUI
+    {
       portno = ntohs(((struct ofp_packet_in *) oh)->in_port);
       npp = (struct neighbor_probe_payload*) (opi->data+sizeof(*eth));
+      dpid=ntohll(npp->datapath_id);
+      neighborport=ntohs(npp->outport);
       VLOG_DBG("Received LLDP packet in port %u from dpid %llx:%u"\
 	       " to expire after %u seconds.",
-	       portno, ntohll(npp->datapath_id), ntohs(npp->outport),
+	       portno, dpid, neighborport,
 	       ntohs(npp->interval));
+
+      //Update neighbor if registered
+      for (i = 0; i < NEIGHBOR_MAX_NO; i++)
+	if ((nd->neighbors[i].in_port == portno) &&
+	    (nd->neighbors[i].neighbor_dpid == dpid) &&
+	    (nd->neighbors[i].neighbor_port == neighborport))
+	{
+	  nd->neighbors[i].expiryTime = now;
+	  nd->neighbors[i].expiryTime.tv_sec += ntohs(npp->interval);
+	  VLOG_DBG("Neighbor %i updated", i);
+	  return true;
+	}
+
+      //New neighbor
+      i = 0;
+      while (nd->neighbors[i].in_port != OFPP_NONE)
+	i++;
+      if (i >= NEIGHBOR_MAX_NO)
+      {
+	VLOG_WARN("Cannot track more than %u neighbors", NEIGHBOR_MAX_NO);
+	return true;
+      }
+      nd->neighbors[i].in_port = portno;
+      nd->neighbors[i].neighbor_dpid = dpid;
+      nd->neighbors[i].neighbor_port = neighborport;
+      nd->neighbors[i].expiryTime = now;
+      nd->neighbors[i].expiryTime.tv_sec += ntohs(npp->interval);
+      nd->port[portno].neighbor_no++;
+      VLOG_DBG("New neighbor registered at index %i", i);
+      
+      //Send neighbor message
+      if (rconn_is_connected(nd->remote_rconn))
+      {
+	nd->neighbormsg.activity = OFPNA_NEIGHBOR_DISCOVERED;
+	nd->neighbormsg.in_port = htons(portno);
+	nd->neighbormsg.neighbor_datapath_id = htonll(dpid);
+	nd->neighbormsg.neighbor_port = htons(neighborport);
+
+	msg = ofpbuf_new(sizeof(nd->neighbormsg));
+	ofpbuf_put(msg, &(nd->neighbormsg), sizeof(nd->neighbormsg));
+	rconn_send(nd->remote_rconn, msg, NULL);
+	VLOG_INFO("Send neighbor msg for new neighbor dpid %llx:%u "\
+		  "at port %u",
+		  dpid, neighborport,portno);
+      }
       return true;
     }
   }
@@ -211,14 +302,6 @@ void neighbordiscovery_start(struct secchan *secchan,
                            //Use IEEE 802.1AB ethertype
   nd->probe.ethhdr.ether_type = htons(OPENFLOW_LLDP_TYPE);
   
-  //Use invalid port OFPP_NONE to denote empty entry
-  for (i = 0; i < NEIGHBOR_PORT_MAX_NO; i++)
-  {
-    nd->port[i].neighbor_no = 0;
-    nd->port[i].expiryTime.tv_sec = 0;
-    nd->port[i].expiryTime.tv_usec = 0;
-  }
-
   //Denote empty port with expiry time of 0
   for (i = 0; i < NEIGHBOR_MAX_NO; i++)
     nd->neighbors[i].in_port = OFPP_NONE;

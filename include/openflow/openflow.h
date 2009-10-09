@@ -326,15 +326,19 @@ struct ofp_packet_in {
 };
 OFP_ASSERT(sizeof(struct ofp_packet_in) == 20);
 
+enum ofp_neighbor_activity {
+  OFPNA_NEIGHBOR_DISCOVERED,       /* New neighbor discovered */
+  OFPNA_NEIGHBOR_EXPIRED           /* Neighbor lost */
+};
+
 /* Neighbor event on port (datapath -> controller). */
 struct ofp_neighbor_msg {
     struct ofp_header header;
-    uint8_t activity;               /* Neighbor discovered or disconnected */
+    uint8_t activity;               /* One of ofp_neighbor_activity */
     uint16_t in_port;               /* Port on which neighbor is/was connected */
     uint64_t neighbor_datapath_id;  /* Datapath id of neighbor */
     uint16_t neighbor_port;         /* Port on neighbor connected to this switch */
-    uint8_t max_miss_interval;      /* Interval for which no LLDP is seen
-				       before switch is considered disconnected */
+    uint8_t pad;                    /* Pad */
 };
 OFP_ASSERT(sizeof(struct ofp_neighbor_msg) == 24);
 

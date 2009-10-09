@@ -81,7 +81,7 @@
  */
 struct neighbor
 {
-  /** Port neighbor is connected to.
+  /** Port neighbor is connected to. 
    */
   uint16_t in_port;
   /** Datapath id of neighbor.
