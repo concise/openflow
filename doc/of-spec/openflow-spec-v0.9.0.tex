@@ -390,9 +390,30 @@ Each flow entry has an \verb|idle_timeout| and a \verb|hard_timeout| associated 
 
 \subsection{Neighbor Discovery}
 
-OpenFlow switches should supports neighbor discovery via Link Layer Discovery Protocol (LLDP) as a default mechanism for link discovery between OpenFlow switches.  This includes the sending of LLDP packets/probes to discover new neighbor and/or its absence.  Alternative mechanisms to replace this default should ideally be user configurable, but is beyond the scope of this specification.
+An OpenFlow-enabled switch must supports neighbor discovery via a custom Link Layer Discovery Protocol (LLDP).  This will be the default mechanism for link discovery between OpenFlow switches.  This mechanism involves sending of LLDP packets/probes to discover new neighbor and/or its absence via expiry.  Alternative mechanisms to replace this default should ideally be user configurable, but is beyond the scope of this specification.
 
-A neighbor is declared as discovered when a LLDP packet from it is received.  It is considered to be disconnected when no LLDP is received for \verb|max_miss_interval| as configured at the sending switch.  The probe should be of a reserved Ethernet type with the datapath id and switch port number in the payload.  OpenFlow switches are expected to intercept these probes and send the appropriate neighbor message if applicable.  The intervals between probing for a new neighbor (\verb|neighbor_probe_new_interval|) or its disconnection (\verb|neighbor_probe_active_interval|) should be independently configured.  
+Using this default mechanism, a neighbor is declared as discovered when a LLDP packet from an unknown switch-port is received.  A \verb|ofp_neighbor_msg| is sent to the controller.  In the LLDP packet, a duration is carried.  The switch-port is considered to have expired when this duration has past.  In that event, another \verb|ofp_neighbor_msg| is sent to the controller.  If a LLDP packet is received before the expiry, the new expiry time has to be updated.  It is the task of the switch to maintain the state for each neighbor and send LLDP probes to each port periodically.
+
+The probe packet is a custom Ethernet packet, with the following payload:
+\begin{footnotesize}
+\begin{verbatim}
+/** \brief Probe packet payload.
+ */
+struct neighbor_probe_payload
+{
+  /** Out port probe packet is sent (cannot be prepacked).
+   */
+  uint16_t outport;
+  /** Datapath id of this switch.
+   */
+  uint64_t datapath_id;
+  /** Minimum time of silence between neighbor is disconnected.
+   */
+  uint16_t interval;
+} __attribute__((packed));
+\end{verbatim}
+\end{footnotesize}
+The probe packet \verb|ether_type| is 0x88cc and \verb|ether_dhost| is 0x01:80:C2:00:00:0E, as in IEEE 802.1 AB. The \verb|ether_shost| is 0x08:00:56:00:00:00 which has the Stanford OUI.
 
 \input{appendix}
  

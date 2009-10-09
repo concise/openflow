@@ -292,10 +292,10 @@ The \verb|status| can be one of the following values:
 \input{enum/ofp_port_reason} 
 
 \subsubsection{Neighbor Message}
-As neighbor as discovered or disconnected, the controller needs to be informed via the \verb|OFPT_NEIGHBOR_MSG| message:
+As neighbor as discovered or expired, the controller needs to be informed via the \verb|OFPT_NEIGHBOR_MSG| message:
 
 \input{struct/ofp_neighbor_msg}
-The \verb|activity| is an enumeration that indicates if a new neighbor is found or an old neighbor is lost.  The \verb|max_miss_interval| field should be \verb|neighbor_probe_active_interval| times the maximum number of tolerable consecutive loss.
+The \verb|activity| is an enumeration that indicates if a new neighbor is found or an old neighbor has expired.
 
 \subsubsection{Error Message}
 There are times that the switch needs to notify the controller of a problem.  This is done with the \verb|OFPT_ERROR_MSG| message: 	
