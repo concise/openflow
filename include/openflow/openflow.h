@@ -868,7 +868,7 @@ struct ofp_queue_get_config_request {
   struct ofp_header header;
   uint16_t port;         /* port to be gueried. */
   uint8_t pad[2];        /* 32-bit alignment */
-}; 
+};
 OFP_ASSERT(sizeof(struct ofp_queue_get_config_request) == 12);
 
 /* Queue configuration for a given port.

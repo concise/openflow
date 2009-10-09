@@ -60,24 +60,20 @@ protocol.
 The controller can query the switch for configured queues
 using the following structure :
 \input{struct/ofp_queue_get_config_request}
-\\\\
 The switch replies back with a  ofp\_queue\_get\_config\_reply command, containing
 a list of configured queues.
 \input{struct/ofp_queue_get_config_reply}
 Each queue is further described by a set of properties, each of a
 specific type and configuration.
-\input{enum/ofp_queue_type}
-\\\\
+\input{enum/ofp_queue_properties}
+Each queue property description starts with a common header:
 \input{struct/ofp_queue_prop_header}
-\\\\
+ofp\_queue is the structure that fully describes a queue:
 \input{struct/ofp_queue}
 
 Currently, there is only a minimum-rate type queue, described by the
 ofp\_queue\_prop\_min\_rate structure :
-\input{enum/ofp_queue_properties}
-\\\\
 \input{struct/ofp_queue_prop_min_rate}
-\\\\
 }
 
 \subsubsection{Flow Match Structures}
