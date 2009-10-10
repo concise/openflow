@@ -599,7 +599,8 @@ enum ofp_error_type {
     OFPET_HELLO_FAILED,         /* Hello protocol failed. */
     OFPET_BAD_REQUEST,          /* Request was not understood. */
     OFPET_BAD_ACTION,           /* Error in action description. */
-    OFPET_FLOW_MOD_FAILED       /* Problem modifying flow entry. */
+    OFPET_FLOW_MOD_FAILED,      /* Problem modifying flow entry. */
+    OFPET_QUEUE_OP              /* Queue operation return code */
 };
 
 /* ofp_error_msg 'code' values for OFPET_HELLO_FAILED.  'data' contains an
@@ -831,9 +832,12 @@ OFP_ASSERT(sizeof(struct ofp_vendor_header) == 12);
 /* All ones is used to indicate all queues in a port (for stats retrieval) */
 #define OFPQ_NONE      0xffffffff
 
+/* Min rate > 1000 means not configured */
+#define OFPQ_MIN_RATE_UNCFG      0xffff
+
 enum ofp_queue_properties {
     OFPQT_NONE = 0,       /* no property defined for queue (default) */
-    OFPQT_MIN,            /* minimum datarate guaranteed */
+    OFPQT_MIN_RATE,       /* minimum datarate guaranteed */
                           /* other types should be added here
 		  				   * (i.e. max rate, precedence, etc) */
 };
@@ -855,13 +859,13 @@ struct ofp_queue_prop_min_rate {
 OFP_ASSERT(sizeof(struct ofp_queue_prop_min_rate) == 16);
 
 /* Full description for a queue */
-struct ofp_queue {
+struct ofp_packet_queue {
     uint32_t queue_id;     /* id for the specific queue */
-    uint16_t len;          /* length in bytes */
+    uint16_t len;          /* length in bytes of this queue desc */
     uint8_t pad[2];        /* 64-bit alignment */
     struct ofp_queue_prop_header properties[0]; /* list of properties */
 };
-OFP_ASSERT(sizeof(struct ofp_queue) == 8);
+OFP_ASSERT(sizeof(struct ofp_packet_queue) == 8);
 
 /* Query for port queue configuration */
 struct ofp_queue_get_config_request {
@@ -877,7 +881,7 @@ struct ofp_queue_get_config_reply {
     struct ofp_header header;
     uint16_t port;
     uint8_t pad[6];
-    struct ofp_queue queues[]; /* list of configured queues */
+    struct ofp_packet_queue queues[]; /* list of configured queues */
 };
 OFP_ASSERT(sizeof(struct ofp_queue_get_config_reply) == 16);
 
@@ -886,7 +890,7 @@ struct ofp_action_enqueue {
     uint16_t type;            /* OFPAT_ENQUEUE */
     uint16_t len;             /* len is 12 */
     uint16_t port;            /* port that queue belongs */
-    uint8_t pad[2]            /* pad for 64-bit alignment */
+    uint8_t pad[2];           /* pad for 64-bit alignment */
     uint32_t queue_id;        /* where to enqueue the packets */
 };
 OFP_ASSERT(sizeof(struct ofp_action_enqueue) == 12);

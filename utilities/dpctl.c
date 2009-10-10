@@ -54,6 +54,7 @@
 #include "compiler.h"
 #include "dpif.h"
 #include "openflow/nicira-ext.h"
+#include "openflow/openflow-ext.h"
 #include "ofp-print.h"
 #include "ofpbuf.h"
 #include "openflow/openflow.h"
@@ -240,6 +241,12 @@ usage(void)
            "  mod-flows SWITCH FLOW       modify actions of matching FLOWs\n"
            "  del-flows SWITCH [FLOW]     delete matching FLOWs\n"
            "  monitor SWITCH              print packets received from SWITCH\n"
+           "  execute SWITCH CMD [ARG...] execute CMD with ARGS on SWITCH\n"
+           "Queue Ops:  Q: queue-id; P: port-id; BW: .1 percent bandwidth\n"
+           "  add-queue SWITCH P Q [BW]   add queue (with min bandwidth)\n"
+           "  mod-queue SWITCH P Q BW     modify queue min bandwidth\n"
+           "  del-queue SWITCH P Q        delete queue\n"
+           "  dump-queue SWITCH [P [Q]]   show queue info\n"
            "\nFor local datapaths, remote switches, and controllers:\n"
            "  probe VCONN                 probe whether VCONN is up\n"
            "  ping VCONN [N]              latency of N-byte echos\n"
@@ -469,6 +476,22 @@ dump_trivial_stats_transaction(const char *vconn_name, uint8_t stats_type)
 {
     struct ofpbuf *request;
     alloc_stats_request(0, stats_type, &request);
+    dump_stats_transaction(vconn_name, request);
+}
+
+static void
+dump_queue_stats_transaction(const char *vconn_name, uint8_t stats_type,
+                             uint16_t port, uint32_t q_id)
+{
+    struct ofpbuf *request;
+    struct ofp_queue_stats_request *q_req;
+
+    alloc_stats_request(sizeof(struct ofp_queue_stats_request), stats_type,
+                        &request);
+    q_req = (struct ofp_queue_stats_request *)
+        offsetof(struct ofp_stats_request, body);
+    q_req->port_no = htons(port);
+    q_req->queue_id = htonl(q_id);
     dump_stats_transaction(vconn_name, request);
 }
 
@@ -1436,6 +1459,244 @@ do_benchmark(const struct settings *s UNUSED, int argc UNUSED, char *argv[])
 }
 
 static void
+do_execute(const struct settings *s UNUSED, int argc, char *argv[])
+{
+    struct vconn *vconn;
+    struct ofpbuf *request;
+    struct nicira_header *nicira;
+    struct nx_command_reply *ncr;
+    uint32_t xid;
+    int i;
+
+    nicira = make_openflow(sizeof *nicira, OFPT_VENDOR, &request);
+    xid = nicira->header.xid;
+    nicira->vendor = htonl(NX_VENDOR_ID);
+    nicira->subtype = htonl(NXT_COMMAND_REQUEST);
+    ofpbuf_put(request, argv[2], strlen(argv[2]));
+    for (i = 3; i < argc; i++) {
+        ofpbuf_put_zeros(request, 1);
+        ofpbuf_put(request, argv[i], strlen(argv[i]));
+    }
+    update_openflow_length(request);
+
+    open_vconn(argv[1], &vconn);
+    run(vconn_send_block(vconn, request), "send");
+
+    for (;;) {
+        struct ofpbuf *reply;
+        uint32_t status;
+
+        run(vconn_recv_xid(vconn, xid, &reply), "recv_xid");
+        if (reply->size < sizeof *ncr) {
+            ofp_fatal(0, "reply is too short (%zu bytes < %zu bytes)",
+                      reply->size, sizeof *ncr);
+        }
+        ncr = reply->data;
+        if (ncr->nxh.header.type != OFPT_VENDOR
+            || ncr->nxh.vendor != htonl(NX_VENDOR_ID)
+            || ncr->nxh.subtype != htonl(NXT_COMMAND_REPLY)) {
+            ofp_fatal(0, "reply is invalid");
+        }
+
+        status = ntohl(ncr->status);
+        if (status & NXT_STATUS_STARTED) {
+            /* Wait for a second reply. */
+            continue;
+        } else if (status & NXT_STATUS_EXITED) {
+            fprintf(stderr, "process terminated normally with exit code %d",
+                    status & NXT_STATUS_EXITSTATUS);
+        } else if (status & NXT_STATUS_SIGNALED) {
+            fprintf(stderr, "process terminated by signal %d",
+                    status & NXT_STATUS_TERMSIG);
+        } else if (status & NXT_STATUS_ERROR) {
+            fprintf(stderr, "error executing command");
+        } else {
+            fprintf(stderr, "process terminated for unknown reason");
+        }
+        if (status & NXT_STATUS_COREDUMP) {
+            fprintf(stderr, " (core dumped)");
+        }
+        putc('\n', stderr);
+
+        fwrite(ncr + 1, reply->size - sizeof *ncr, 1, stdout);
+        break;
+    }
+}
+
+/****************************************************************
+ *
+ * Queue operations 
+ *
+ ****************************************************************/
+
+static int
+parse_queue_params(int argc, char *argv[], uint16_t *port, uint32_t *q_id,
+                   uint16_t *min_rate)
+{
+    if (!port || !q_id) {
+        return -1;
+    }
+
+    *port = OFPP_NONE;
+    *q_id = OFPQ_NONE;
+    if (argc > 2) {
+        *port = str_to_u32(argv[2]);
+    }
+    if (argc > 3) {
+        *q_id = str_to_u32(argv[3]);
+    }
+    if (min_rate) {
+        *min_rate = OFPQ_MIN_RATE_UNCFG;
+        if (argc > 4) {
+            *min_rate = str_to_u32(argv[4]);
+        }
+    }
+
+    return 0;
+}
+
+/* Get the pointer to struct member based on member offset */
+#define S_PTR(_ptr, _type, _member) \
+    ((void *)((_ptr) + offsetof(_type, _member)))
+
+/* Length of queue request; works with 16-bit property values like min_rate */
+#define Q_REQ_LEN(prop_count) \
+    (sizeof(struct ofp_packet_queue) + Q_PROP_LEN(prop_count))
+
+#define Q_PROP_LEN(prop_count) \
+    ((prop_count) * sizeof(struct ofp_queue_prop_min_rate))
+
+/*
+ * Execute a queue add/mod/del operation
+ *
+ * All commands must specify a port and queue id.
+ * Add may specify a bandwidth value
+ * Modify must specify a bandwidth value
+ *
+ * To simplify things, always allocate space for all three parameters
+ * (port, queue, min-bw):
+ *     openflow_queue_header (w/ ofp header, port)
+ *     ofp_queue (with q_id and offset to properties list)
+ *     ofp_queue_prop_min_rate (w/ prop header and rate info)
+ */
+static struct openflow_queue_command_header *
+queue_req_create(int cmd, struct ofpbuf **b, uint16_t port, 
+                 uint32_t q_id, uint16_t min_rate)
+{
+    struct openflow_queue_command_header *request;
+    struct ofp_packet_queue *queue;
+    struct ofp_queue_prop_min_rate *min_rate_prop;
+    int req_bytes;
+
+    req_bytes = sizeof(*request) + sizeof(*queue) + sizeof(*min_rate_prop);
+    request = make_openflow(req_bytes, OFPT_VENDOR, b);
+    if (request == NULL) {
+        return NULL;
+    }
+    request->vendor = htonl(OPENFLOW_VENDOR_ID);
+    request->subtype = htonl(cmd);
+    request->port = htons(port);
+
+    /* Will get complicated when queue properties w/ different struct sizes */
+    queue = S_PTR(request, struct openflow_queue_command_header, body);
+    queue->queue_id = htonl(q_id);
+    queue->len = htons(Q_REQ_LEN(1));
+
+    min_rate_prop = S_PTR(queue, struct ofp_packet_queue, properties);
+    min_rate_prop->prop_header.property = htons(OFPQT_MIN_RATE);
+    min_rate_prop->prop_header.len = htons(Q_PROP_LEN(1));
+    min_rate_prop->rate = htons(min_rate);
+
+    return request;
+}
+
+/* Handler for add/modify/delete queue ops */
+static void
+do_queue_op(int cmd, int argc, char *argv[])
+{
+    struct openflow_queue_command_header *request;
+    struct ofp_error_msg *reply;
+    struct vconn *vconn;
+    struct ofpbuf *b;
+    uint16_t port;
+    uint32_t q_id;
+    uint16_t min_rate;
+
+    if (parse_queue_params(argc, argv, &port, &q_id, &min_rate) < 0) {
+        ofp_fatal(0, "Error parsing port/queue for cmd %s", argv[0]);
+        return;
+    }
+
+    printf("que op %d (%s). port %d. q 0x%x. rate %d\n", cmd, argv[0], 
+           port, q_id, min_rate);
+
+    if ((request = queue_req_create(cmd, &b, port, q_id, min_rate)) == NULL) {
+        ofp_fatal(0, "Error creating queue req for cmd %s", argv[0]);
+        return;
+    }
+
+    printf("made request %p, running transaction\n", request);
+
+    open_vconn(argv[1], &vconn);
+    run(vconn_transact(vconn, b, &b), "que op to %s", argv[1]);
+    vconn_close(vconn);
+
+    if (b->size < sizeof *reply) {
+        ofp_fatal(0, "short reply (%zu bytes)", b->size);
+    }
+    reply = b->data;
+    printf("got reply hdr type %d. err type %d\n", reply->header.type,
+           ntohs(reply->type));
+    if (reply->header.type != OFPT_ERROR
+        || ntohs(reply->type) != OFPET_QUEUE_OP) {
+        ofp_print(stderr, b->data, b->size, 2);
+        ofp_fatal(0, "bad reply");
+    }
+    if (ntohs(reply->code) != OFQ_ERR_NONE) {
+        fprintf(stderr, "Error %s returned from queue op %s\n",
+                ofq_error_string(ntohs(reply->code)), argv[1]);
+    } else if (cmd == OFQ_CMD_SHOW) { /* Note to self: put cfg info here */
+        fwrite(reply + 1, b->size, 1, stdout);
+    }
+}
+
+char *openflow_queue_error_strings[] = OPENFLOW_QUEUE_ERROR_STRINGS_DEF;
+
+static void
+do_mod_queue(const struct settings *s UNUSED, int argc, char *argv[])
+{
+    do_queue_op(OFQ_CMD_MODIFY, argc, argv);
+}
+
+static void
+do_del_queue(const struct settings *s UNUSED, int argc, char *argv[])
+{
+    do_queue_op(OFQ_CMD_DELETE, argc, argv);
+}
+
+static void
+do_dump_queue(const struct settings *s UNUSED, int argc, char *argv[])
+{
+    uint16_t port;
+    uint32_t q_id;
+
+    /* First do a normal queue get config request operation */
+    dump_trivial_transaction(argv[1], OFPT_QUEUE_GET_CONFIG_REQUEST);
+
+    /* Now do the show operation to indicate possible config */
+    do_queue_op(OFQ_CMD_SHOW, argc, argv);
+
+    /* Now get queue stats */
+    if (parse_queue_params(argc, argv, &port, &q_id, NULL) < 0) {
+        ofp_fatal(0, "Error parsing port/queue");
+        return;
+    }
+
+    /* Then do a queue stats get */
+    dump_queue_stats_transaction(argv[1], OFPST_QUEUE, port, q_id);
+}
+
+static void
 do_help(const struct settings *s UNUSED, int argc UNUSED, char *argv[] UNUSED)
 {
     usage();
@@ -1467,6 +1728,10 @@ static struct command all_commands[] = {
     { "del-flows", 1, 2, do_del_flows },
     { "dump-ports", 1, 1, do_dump_ports },
     { "mod-port", 3, 3, do_mod_port },
+    { "add-queue", 3, 4, do_mod_queue },
+    { "mod-queue", 3, 4, do_mod_queue },
+    { "del-queue", 3, 3, do_del_queue },
+    { "dump-queue", 1, 3, do_dump_queue },
     { "probe", 1, 1, do_probe },
     { "ping", 1, 2, do_ping },
     { "benchmark", 3, 3, do_benchmark },
