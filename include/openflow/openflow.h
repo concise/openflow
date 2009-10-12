@@ -710,12 +710,13 @@ OFP_ASSERT(sizeof(struct ofp_stats_reply) == 12);
 /* Body of reply to OFPST_DESC request.  Each entry is a NULL-terminated
  * ASCII string. */
 struct ofp_desc_stats {
-    char mfr_desc[DESC_STR_LEN];       /* Manufacturer description. */
-    char hw_desc[DESC_STR_LEN];        /* Hardware description. */
-    char sw_desc[DESC_STR_LEN];        /* Software description. */
-    char serial_num[SERIAL_NUM_LEN];   /* Serial number. */
+    char mfr_desc[DESC_STR_LEN];       	/* Manufacturer description. */
+    char hw_desc[DESC_STR_LEN];        	/* Hardware description. */
+    char sw_desc[DESC_STR_LEN];        	/* Software description. */
+    char dp_comment[DESC_STR_LEN];	/* Human readable comment to identify datapath. */
+    char serial_num[SERIAL_NUM_LEN];   	/* Serial number. */
 };
-OFP_ASSERT(sizeof(struct ofp_desc_stats) == 800);
+OFP_ASSERT(sizeof(struct ofp_desc_stats) == 1056);
 
 /* Body for ofp_stats_request of type OFPST_FLOW. */
 struct ofp_flow_stats_request {

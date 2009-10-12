@@ -490,6 +490,7 @@ static gint ofp_desc_stats = -1;
 static gint ofp_desc_stats_mfr_desc = -1;
 static gint ofp_desc_stats_hw_desc = -1;
 static gint ofp_desc_stats_sw_desc = -1;
+static gint ofp_desc_stats_dp_comment = -1;
 static gint ofp_desc_stats_serial_num = -1;
 
 static gint ofp_flow_stats_request          = -1;
@@ -1477,6 +1478,9 @@ void proto_register_openflow()
 
         { &ofp_desc_stats_sw_desc,
           { "SW Desc", "of.stats_desc_sw_desc", FT_STRING, BASE_NONE, NO_STRINGS, NO_MASK, "SW Desc", HFILL } },
+
+        { &ofp_desc_stats_dp_comment,
+          { "DP Comment", "of.stats_desc_dp_comment", FT_STRING, BASE_NONE, NO_STRINGS, NO_MASK, "DP Comment", HFILL } },
 
         { &ofp_desc_stats_serial_num,
           { "Serial Num", "of.stats_desc_serial_num", FT_STRING, BASE_NONE, NO_STRINGS, NO_MASK, "Serial Num", HFILL } },
@@ -2808,6 +2812,7 @@ static void dissect_openflow_message(tvbuff_t *tvb, packet_info *pinfo, proto_tr
                 add_child( desc_tree, ofp_desc_stats_mfr_desc, tvb, &offset, DESC_STR_LEN );
                 add_child( desc_tree, ofp_desc_stats_hw_desc, tvb, &offset, DESC_STR_LEN );
                 add_child( desc_tree, ofp_desc_stats_sw_desc, tvb, &offset, DESC_STR_LEN );
+                add_child( desc_tree, ofp_desc_stats_dp_comment, tvb, &offset, DESC_STR_LEN );
                 add_child( desc_tree, ofp_desc_stats_serial_num, tvb, &offset, SERIAL_NUM_LEN );
 
             	break;

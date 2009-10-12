@@ -38,6 +38,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "chain.h"
 #include "csum.h"
 #include "flow.h"
@@ -64,6 +65,7 @@
 extern char mfr_desc;
 extern char hw_desc;
 extern char sw_desc;
+extern char dp_comment;
 extern char serial_num;
 
 /* Capabilities supported by this implementation. */
@@ -183,6 +185,12 @@ dp_new(struct datapath **dp_, uint64_t dpid)
     list_init(&dp->port_list);
     dp->flags = 0;
     dp->miss_send_len = OFP_DEFAULT_MISS_SEND_LEN;
+
+    if(strlen(&dp_comment) > 0)	// use the comment, if specified
+	    strncpy(dp->dp_comment, &dp_comment, sizeof dp->dp_comment);
+    else			// else, just use $HOSTNAME
+	    gethostname(dp->dp_comment,sizeof dp->dp_comment);
+
     *dp_ = dp;
     return 0;
 }
@@ -1181,6 +1189,7 @@ desc_stats_dump(struct datapath *dp UNUSED, void *state UNUSED,
     strncpy(ods->mfr_desc, &mfr_desc, sizeof ods->mfr_desc);
     strncpy(ods->hw_desc, &hw_desc, sizeof ods->hw_desc);
     strncpy(ods->sw_desc, &sw_desc, sizeof ods->sw_desc);
+    strncpy(ods->dp_comment, dp->dp_comment, sizeof ods->dp_comment);
     strncpy(ods->serial_num, &serial_num, sizeof ods->serial_num);
 
     return 0;
