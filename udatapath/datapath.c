@@ -46,6 +46,7 @@
 #include "openflow/openflow.h"
 #include "openflow/nicira-ext.h"
 #include "openflow/private-ext.h"
+#include "openflow/openflow-ext.h"
 #include "packets.h"
 #include "poll-loop.h"
 #include "rconn.h"
@@ -55,6 +56,7 @@
 #include "vconn.h"
 #include "xtoxll.h"
 #include "private-msg.h"
+#include "of_ext_msg.h"
 #include "dp_act.h"
 
 #define THIS_MODULE VLM_datapath
@@ -230,6 +232,7 @@ new_port(struct datapath *dp, struct sw_port *port, uint16_t port_no,
 
     memset(port, '\0', sizeof *port);
 
+	list_init(&port->queue_list);
     port->dp = dp;
     port->netdev = netdev;
     port->port_no = port_no;
@@ -1664,6 +1667,14 @@ recv_echo_reply(struct datapath *dp UNUSED, const struct sender *sender UNUSED,
 }
 
 static int
+recv_queue_get_config_request(struct datapath *dp UNUSED, const struct sender *sender UNUSED,
+							  const void *oh UNUSED)
+{
+	VLOG_ERR("Received Queue Get Config Request");
+	return 0;
+}
+
+static int
 recv_vendor(struct datapath *dp, const struct sender *sender,
                   const void *oh)
 {
@@ -1673,6 +1684,9 @@ recv_vendor(struct datapath *dp, const struct sender *sender,
     {
     case PRIVATE_VENDOR_ID:
         return private_recv_msg(dp, sender, oh);
+
+	case OPENFLOW_VENDOR_ID:
+	    return of_ext_recv_msg(dp, sender, oh);
 
     default:
         VLOG_WARN_RL(&rl, "unknown vendor: 0x%x\n", ntohl(ovh->vendor));
@@ -1741,6 +1755,10 @@ fwd_control_input(struct datapath *dp, const struct sender *sender,
         min_size = sizeof(struct ofp_header);
         handler = recv_echo_reply;
         break;
+	case OFPT_QUEUE_GET_CONFIG_REQUEST:
+	    min_size = sizeof(struct ofp_header);
+		handler = recv_queue_get_config_request;
+		break;
     case OFPT_VENDOR:
         min_size = sizeof(struct ofp_vendor_header);
         handler = recv_vendor;

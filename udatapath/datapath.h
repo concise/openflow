@@ -48,6 +48,18 @@ struct pvconn;
 struct sw_flow;
 struct sender;
 
+#define DP_MAX_QUEUES 8
+struct sw_queue {
+	struct list node; /* element in port.queues */
+	unsigned long long int tx_packets;
+	unsigned long long int tx_bytes;
+	uint32_t queue_id;
+	struct sw_port *port; /* reference to the parent port */
+	/* keep it simple for now, only one property (assuming min_rate) */
+	uint16_t property; /* one from OFPQT_ */
+	uint32_t min_rate;
+};
+  
 struct sw_port {
     uint32_t config;            /* Some subset of OFPPC_* flags. */
     uint32_t state;             /* Some subset of OFPPS_* flags. */
@@ -58,6 +70,9 @@ struct sw_port {
     unsigned long long int rx_bytes, tx_bytes;
     unsigned long long int tx_dropped;
     uint16_t port_no;
+	/* port queues */
+	struct sw_queue queues[DP_MAX_QUEUES];
+	struct list queue_list; /* list of all queues for this port */
 };
 
 #define DP_MAX_PORTS 255
