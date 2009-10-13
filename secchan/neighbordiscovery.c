@@ -1,6 +1,7 @@
 #include "neighbordiscovery.h"
 #include "ofpbuf.h"
 #include "xtoxll.h"
+#include "poll-loop.h"
 
 #define THIS_MODULE VLM_neighbor_discovery
 #include "vlog.h"
@@ -250,6 +251,29 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
   return false;
 }
 
+/** \brief Wait callback to ensure timing for periodic callback.
+ *
+ * @param nd_ pointer to state of neighbor discovery
+ */
+static void neighbordiscovery_wait_cb(void *nd_)
+{
+  struct neighbor_discovery* nd = nd_;
+  struct timeval now, tresult;
+
+  if (nd->probe_ready &&
+      rconn_is_connected(nd->local_rconn) &&
+      rconn_is_connected(nd->remote_rconn))
+  {
+    gettimeofday(&now, NULL);
+    timersub(&now, &(nd->lastcall), &tresult);  
+
+    if (tresult.tv_sec == 0)
+      poll_timer_wait(1000);
+    else 
+      poll_immediate_wake();
+  }
+}
+
 /** Hook class to declare callback functions.
  */
 static struct hook_class neighbordiscovery_hook_class =
@@ -257,7 +281,7 @@ static struct hook_class neighbordiscovery_hook_class =
   neighbordiscovery_local_packet_cb, /* local_packet_cb */
   NULL,                              /* remote_packet_cb */
   neighbordiscovery_periodic_cb,     /* periodic_cb */
-  NULL,                              /* wait_cb */
+  neighbordiscovery_wait_cb,         /* wait_cb */
   NULL,                              /* closing_cb */
 };
 
