@@ -45,21 +45,22 @@ int of_ext_recv_msg(struct datapath *dp UNUSED, const struct sender *sender UNUS
 {
     const struct openflow_queue_command_header  *ofexth = oh;
 
-    switch (ntohl(ofexth->subtype)) {
-    case OFQ_CMD_MODIFY: {
-		VLOG_ERR("Received OFQ_CMD_MODIFY command");
+    switch (ntohl(ofexth->header.subtype)) {
+    case OFP_EXT_QUEUE_MODIFY: {
+		VLOG_ERR("Received OFP_EXT_QUEUE_MODIFY command");
 		return 0;
     }
-	case OFQ_CMD_DELETE: {
-		VLOG_ERR("Received OFQ_CMD_DELETE command");
+	case OFP_EXT_QUEUE_DELETE: {
+		VLOG_ERR("Received OFP_EXT_QUEUE_DELETE command");
 		return 0;
     }
-	case OFQ_CMD_SHOW: {
-		VLOG_ERR("Received OFQ_CMD_SHOW command");
+	case OFP_EXT_QUEUE_SHOW: {
+		VLOG_ERR("Received OFP_EXT_QUEUE_SHOW command");
 		return 0;
     }
     default:
-		VLOG_ERR("Received unknown command of type %d",ntohl(ofexth->subtype));
+		VLOG_ERR("Received unknown command of type %d",
+                 ntohl(ofexth->header.subtype));
 		return -EINVAL;
     }
 
