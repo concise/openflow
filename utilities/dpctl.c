@@ -1593,8 +1593,8 @@ queue_req_create(int cmd, struct ofpbuf **b, uint16_t port,
     if (request == NULL) {
         return NULL;
     }
-    request->vendor = htonl(OPENFLOW_VENDOR_ID);
-    request->subtype = htonl(cmd);
+    request->header.vendor = htonl(OPENFLOW_VENDOR_ID);
+    request->header.subtype = htonl(cmd);
     request->port = htons(port);
 
     /* Will get complicated when queue properties w/ different struct sizes */
@@ -1655,7 +1655,8 @@ do_queue_op(int cmd, int argc, char *argv[])
     if (ntohs(reply->code) != OFQ_ERR_NONE) {
         fprintf(stderr, "Error %s returned from queue op %s\n",
                 ofq_error_string(ntohs(reply->code)), argv[1]);
-    } else if (cmd == OFQ_CMD_SHOW) { /* Note to self: put cfg info here */
+    } else if (cmd == OFP_EXT_QUEUE_SHOW) { 
+        /* Note to self: put cfg info here */
         fwrite(reply + 1, b->size, 1, stdout);
     }
 }
@@ -1665,13 +1666,13 @@ char *openflow_queue_error_strings[] = OPENFLOW_QUEUE_ERROR_STRINGS_DEF;
 static void
 do_mod_queue(const struct settings *s UNUSED, int argc, char *argv[])
 {
-    do_queue_op(OFQ_CMD_MODIFY, argc, argv);
+    do_queue_op(OFP_EXT_QUEUE_MODIFY, argc, argv);
 }
 
 static void
 do_del_queue(const struct settings *s UNUSED, int argc, char *argv[])
 {
-    do_queue_op(OFQ_CMD_DELETE, argc, argv);
+    do_queue_op(OFP_EXT_QUEUE_DELETE, argc, argv);
 }
 
 static void
@@ -1684,7 +1685,7 @@ do_dump_queue(const struct settings *s UNUSED, int argc, char *argv[])
     dump_trivial_transaction(argv[1], OFPT_QUEUE_GET_CONFIG_REQUEST);
 
     /* Now do the show operation to indicate possible config */
-    do_queue_op(OFQ_CMD_SHOW, argc, argv);
+    do_queue_op(OFP_EXT_QUEUE_SHOW, argc, argv);
 
     /* Now get queue stats */
     if (parse_queue_params(argc, argv, &port, &q_id, NULL) < 0) {

@@ -18,22 +18,30 @@
 
 #define OPENFLOW_VENDOR_ID 0x000026e1
 
+enum ofp_extension_commands { /* Queue configuration commands */
+    /* Queue Commands */
+    OFP_EXT_QUEUE_MODIFY,  /* Add and/or modify */
+    OFP_EXT_QUEUE_DELETE,  /* Remove a queue */
+    OFP_EXT_QUEUE_SHOW,    /* Show queue config, stats, available queues */
+
+    OFP_EXT_COUNT
+};
+
+struct ofp_extension_header {
+    struct ofp_header header;
+    uint32_t vendor;            /* OPENFLOW_VENDOR_ID. */
+    uint32_t subtype;           /* One of ofp_extension_commands */
+};
+OFP_ASSERT(sizeof(struct ofp_extension_header) == 16);
+
 /****************************************************************
  *
  * OpenFlow Queue Configuration Operations
  *
  ****************************************************************/
 
-enum openflow_queue_commands { /* Queue configuration commands */
-    OFQ_CMD_MODIFY,  /* Add and/or modify */
-    OFQ_CMD_DELETE,  /* Remove a queue */
-    OFQ_CMD_SHOW     /* Show queue config, stats, available queues */
-};
-
 struct openflow_queue_command_header {
-    struct ofp_header header;
-    uint32_t vendor;            /* OPENFLOW_VENDOR_ID. */
-    uint32_t subtype;           /* One of OFQ_CMD above. */
+    struct ofp_extension_header header;
     uint16_t port;              /* Port for operations */
     uint8_t pad[6];             /* Align to 64-bits */
     uint8_t body[0];            /* Body of ofp_queue objects for op. */
