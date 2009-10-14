@@ -253,6 +253,8 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
 
 /** \brief Wait callback to ensure timing for periodic callback.
  *
+ * Attempt to invoke periodic every second.
+ *
  * @param nd_ pointer to state of neighbor discovery
  */
 static void neighbordiscovery_wait_cb(void *nd_)
@@ -268,7 +270,7 @@ static void neighbordiscovery_wait_cb(void *nd_)
     timersub(&now, &(nd->lastcall), &tresult);  
 
     if (tresult.tv_sec == 0)
-      poll_timer_wait(1000);
+      poll_timer_wait(1000-(tresult.tv_usec/1000));
     else 
       poll_immediate_wake();
   }
