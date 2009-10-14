@@ -390,7 +390,7 @@ Each flow entry has an \verb|idle_timeout| and a \verb|hard_timeout| associated 
 
 \subsection{Neighbor Discovery}
 
-An OpenFlow-enabled switch must supports neighbor discovery via a custom Link Layer Discovery Protocol (LLDP).  This will be the default mechanism for link discovery between OpenFlow switches.  This mechanism involves sending of LLDP packets/probes to discover new neighbor and/or its absence via expiry.  Alternative mechanisms to replace this default should ideally be user configurable, but is beyond the scope of this specification.
+An OpenFlow-enabled switch must supports neighbor discovery via a custom Link Layer Discovery Protocol (LLDP).  This will be the default mechanism for link discovery between OpenFlow switches.  This mechanism requires periodic sending of LLDP packets/probes to discover new neighbor and/or its departure (from prolonged silence).  Alternative mechanisms to replace this default should ideally be user configurable, but is beyond the scope of this specification.
 
 Using this default mechanism, a neighbor is declared as discovered when a LLDP packet from an unknown switch-port is received.  A \verb|ofp_neighbor_msg| is sent to the controller.  In the LLDP packet, a duration is carried.  The switch-port is considered to have expired when this duration has past.  In that event, another \verb|ofp_neighbor_msg| is sent to the controller.  If a LLDP packet is received before the expiry, the new expiry time has to be updated.  It is the task of the switch to maintain the state for each neighbor and send LLDP probes to each port periodically.
 
