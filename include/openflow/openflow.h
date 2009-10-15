@@ -545,6 +545,7 @@ enum ofp_flow_mod_flags {
 struct ofp_flow_mod {
     struct ofp_header header;
     struct ofp_match match;      /* Fields to match */
+    uint64_t cookie;             /* Opaque controller-issued identifier. */
 
     /* Flow actions. */
     uint16_t command;             /* One of OFPFC_*. */
@@ -558,12 +559,11 @@ struct ofp_flow_mod {
                                      output port.  A value of OFPP_NONE
                                      indicates no restriction. */
     uint16_t flags;               /* One of OFPFF_*. */
-    uint32_t reserved;            /* Reserved for future use. */
     struct ofp_action_header actions[0]; /* The action length is inferred
                                             from the length field in the
                                             header. */
 };
-OFP_ASSERT(sizeof(struct ofp_flow_mod) == 68);
+OFP_ASSERT(sizeof(struct ofp_flow_mod) == 72);
 
 /* Why was this flow removed? */
 enum ofp_flow_removed_reason {
@@ -576,6 +576,7 @@ enum ofp_flow_removed_reason {
 struct ofp_flow_removed {
     struct ofp_header header;
     struct ofp_match match;   /* Description of fields. */
+    uint64_t cookie;          /* Opaque controller-issued identifier. */
 
     uint16_t priority;        /* Priority level of flow entry. */
     uint8_t reason;           /* One of OFPRR_*. */
@@ -587,7 +588,7 @@ struct ofp_flow_removed {
     uint64_t packet_count;
     uint64_t byte_count;
 };
-OFP_ASSERT(sizeof(struct ofp_flow_removed) == 80);
+OFP_ASSERT(sizeof(struct ofp_flow_removed) == 88);
 
 /* Values for 'type' in ofp_error_message.  These values are immutable: they
  * will not change in future versions of the protocol (although new values may
@@ -736,16 +737,17 @@ struct ofp_flow_stats {
     uint8_t pad;
     struct ofp_match match;   /* Description of fields. */
     uint32_t duration;        /* Time flow has been alive in seconds. */
+    uint64_t cookie;          /* Opaque controller-issued identifier. */
     uint16_t priority;        /* Priority of the entry. Only meaningful
                                  when this is not an exact-match entry. */
     uint16_t idle_timeout;    /* Number of seconds idle before expiration. */
     uint16_t hard_timeout;    /* Number of seconds before expiration. */
-    uint16_t pad2;            /* Pad to 64 bits. */
+    uint8_t pad2[2];          /* Align to 64 bits. */
     uint64_t packet_count;    /* Number of packets in flow. */
     uint64_t byte_count;      /* Number of bytes in flow. */
     struct ofp_action_header actions[0]; /* Actions. */
 };
-OFP_ASSERT(sizeof(struct ofp_flow_stats) == 72);
+OFP_ASSERT(sizeof(struct ofp_flow_stats) == 80);
 
 /* Body for ofp_stats_request of type OFPST_AGGREGATE. */
 struct ofp_aggregate_stats_request {
