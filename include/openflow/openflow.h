@@ -96,36 +96,36 @@ enum ofp_port {
 
 enum ofp_type {
     /* Immutable messages. */
-    OFPT_HELLO,               /* Symmetric message */
-    OFPT_ERROR,               /* Symmetric message */
-    OFPT_ECHO_REQUEST,        /* Symmetric message */
-    OFPT_ECHO_REPLY,          /* Symmetric message */
-    OFPT_VENDOR,              /* Symmetric message */
+    OFPT_HELLO              = 0x00,  /* Symmetric message */
+    OFPT_ERROR              = 0x01,  /* Symmetric message */
+    OFPT_ECHO_REQUEST       = 0x02,  /* Symmetric message */
+    OFPT_ECHO_REPLY         = 0x03,  /* Symmetric message */
+    OFPT_VENDOR             = 0x04,  /* Symmetric message */
 
     /* Switch configuration messages. */
-    OFPT_FEATURES_REQUEST,    /* Controller/switch message */
-    OFPT_FEATURES_REPLY,      /* Controller/switch message */
-    OFPT_GET_CONFIG_REQUEST,  /* Controller/switch message */
-    OFPT_GET_CONFIG_REPLY,    /* Controller/switch message */
-    OFPT_SET_CONFIG,          /* Controller/switch message */
+    OFPT_FEATURES_REQUEST   = 0x05,  /* Controller/switch message */
+    OFPT_FEATURES_REPLY     = 0x06,  /* Controller/switch message */
+    OFPT_GET_CONFIG_REQUEST = 0x07,  /* Controller/switch message */
+    OFPT_GET_CONFIG_REPLY   = 0x08,  /* Controller/switch message */
+    OFPT_SET_CONFIG         = 0x09,  /* Controller/switch message */
 
     /* Asynchronous messages. */
-    OFPT_PACKET_IN,           /* Async message */
-    OFPT_FLOW_REMOVED,        /* Async message */
-    OFPT_PORT_STATUS,         /* Async message */
+    OFPT_PACKET_IN          = 0x0a,  /* Async message */
+    OFPT_FLOW_REMOVED       = 0x0b,  /* Async message */
+    OFPT_PORT_STATUS        = 0x0c,  /* Async message */
 
     /* Controller command messages. */
-    OFPT_PACKET_OUT,          /* Controller/switch message */
-    OFPT_FLOW_MOD,            /* Controller/switch message */
-    OFPT_PORT_MOD,            /* Controller/switch message */
+    OFPT_PACKET_OUT         = 0x0d,  /* Controller/switch message */
+    OFPT_FLOW_MOD           = 0x0e,  /* Controller/switch message */
+    OFPT_PORT_MOD           = 0x0f,  /* Controller/switch message */
 
     /* Statistics messages. */
-    OFPT_STATS_REQUEST,       /* Controller/switch message */
-    OFPT_STATS_REPLY,         /* Controller/switch message */
+    OFPT_STATS_REQUEST      = 0x10,  /* Controller/switch message */
+    OFPT_STATS_REPLY        = 0x11,  /* Controller/switch message */
 
     /* Barrier messages. */
-    OFPT_BARRIER_REQUEST,     /* Controller/switch message */
-    OFPT_BARRIER_REPLY        /* Controller/switch message */
+    OFPT_BARRIER_REQUEST    = 0x12,  /* Controller/switch message */
+    OFPT_BARRIER_REPLY      = 0x13   /* Controller/switch message */
 };
 
 /* Header on all OpenFlow packets. */
@@ -267,9 +267,9 @@ OFP_ASSERT(sizeof(struct ofp_switch_features) == 32);
 
 /* What changed about the physical port */
 enum ofp_port_reason {
-    OFPPR_ADD,              /* The port was added. */
-    OFPPR_DELETE,           /* The port was removed. */
-    OFPPR_MODIFY            /* Some attribute of the port has changed. */
+    OFPPR_ADD    = 0,       /* The port was added. */
+    OFPPR_DELETE = 1,       /* The port was removed. */
+    OFPPR_MODIFY = 2        /* Some attribute of the port has changed. */
 };
 
 /* A physical port has changed in the datapath */
@@ -302,8 +302,8 @@ OFP_ASSERT(sizeof(struct ofp_port_mod) == 32);
 
 /* Why is this packet being sent to the controller? */
 enum ofp_packet_in_reason {
-    OFPR_NO_MATCH,          /* No matching flow. */
-    OFPR_ACTION             /* Action explicitly output to controller. */
+    OFPR_NO_MATCH = 0,          /* No matching flow. */
+    OFPR_ACTION   = 1           /* Action explicitly output to controller. */
 };
 
 /* Packet received on port (datapath -> controller). */
@@ -324,18 +324,18 @@ struct ofp_packet_in {
 OFP_ASSERT(sizeof(struct ofp_packet_in) == 20);
 
 enum ofp_action_type {
-    OFPAT_OUTPUT,           /* Output to switch port. */
-    OFPAT_SET_VLAN_VID,     /* Set the 802.1q VLAN id. */
-    OFPAT_SET_VLAN_PCP,     /* Set the 802.1q priority. */
-    OFPAT_STRIP_VLAN,       /* Strip the 802.1q header. */
-    OFPAT_SET_DL_SRC,       /* Ethernet source address. */
-    OFPAT_SET_DL_DST,       /* Ethernet destination address. */
-    OFPAT_SET_NW_SRC,       /* IP source address. */
-    OFPAT_SET_NW_DST,       /* IP destination address. */
-    OFPAT_SET_NW_TOS,       /* IP ToS/DSCP field (6 bits). */
-    OFPAT_SET_TP_SRC,       /* TCP/UDP source port. */
-    OFPAT_SET_TP_DST,       /* TCP/UDP destination port. */
-    OFPAT_VENDOR = 0xffff
+    OFPAT_OUTPUT       = 0x0000,   /* Output to switch port. */
+    OFPAT_SET_VLAN_VID = 0x0001,   /* Set the 802.1q VLAN id. */
+    OFPAT_SET_VLAN_PCP = 0x0002,   /* Set the 802.1q priority. */
+    OFPAT_STRIP_VLAN   = 0x0003,   /* Strip the 802.1q header. */
+    OFPAT_SET_DL_SRC   = 0x0004,   /* Ethernet source address. */
+    OFPAT_SET_DL_DST   = 0x0005,   /* Ethernet destination address. */
+    OFPAT_SET_NW_SRC   = 0x0006,   /* IP source address. */
+    OFPAT_SET_NW_DST   = 0x0007,   /* IP destination address. */
+    OFPAT_SET_NW_TOS   = 0x0008,   /* IP ToS/DSCP field (6 bits). */
+    OFPAT_SET_TP_SRC   = 0x0009,   /* TCP/UDP source port. */
+    OFPAT_SET_TP_DST   = 0x000a,   /* TCP/UDP destination port. */
+    OFPAT_VENDOR       = 0xffff
 };
 
 /* Action structure for OFPAT_OUTPUT, which sends packets out 'port'.
@@ -443,11 +443,11 @@ struct ofp_packet_out {
 OFP_ASSERT(sizeof(struct ofp_packet_out) == 16);
 
 enum ofp_flow_mod_command {
-    OFPFC_ADD,              /* New flow. */
-    OFPFC_MODIFY,           /* Modify all matching flows. */
-    OFPFC_MODIFY_STRICT,    /* Modify entry strictly matching wildcards */
-    OFPFC_DELETE,           /* Delete all matching flows. */
-    OFPFC_DELETE_STRICT    /* Strictly match wildcards and priority. */
+    OFPFC_ADD           = 0x0000, /* New flow. */
+    OFPFC_MODIFY        = 0x0001, /* Modify all matching flows. */
+    OFPFC_MODIFY_STRICT = 0x0002, /* Modify entry strictly matching wildcards */
+    OFPFC_DELETE        = 0x0003, /* Delete all matching flows. */
+    OFPFC_DELETE_STRICT = 0x0004  /* Strictly match wildcards and priority. */
 };
 
 /* Flow wildcards. */
@@ -567,9 +567,9 @@ OFP_ASSERT(sizeof(struct ofp_flow_mod) == 68);
 
 /* Why was this flow removed? */
 enum ofp_flow_removed_reason {
-    OFPRR_IDLE_TIMEOUT,         /* Flow idle time exceeded idle_timeout. */
-    OFPRR_HARD_TIMEOUT,         /* Time exceeded hard_timeout. */
-    OFPRR_DELETE                /* Evicted by a DELETE flow mod. */
+    OFPRR_IDLE_TIMEOUT = 0,         /* Flow idle time exceeded idle_timeout. */
+    OFPRR_HARD_TIMEOUT = 1,         /* Time exceeded hard_timeout. */
+    OFPRR_DELETE       = 2          /* Evicted by a DELETE flow mod. */
 };
 
 /* Flow removed (datapath -> controller). */
@@ -593,52 +593,52 @@ OFP_ASSERT(sizeof(struct ofp_flow_removed) == 80);
  * will not change in future versions of the protocol (although new values may
  * be added). */
 enum ofp_error_type {
-    OFPET_HELLO_FAILED,         /* Hello protocol failed. */
-    OFPET_BAD_REQUEST,          /* Request was not understood. */
-    OFPET_BAD_ACTION,           /* Error in action description. */
-    OFPET_FLOW_MOD_FAILED       /* Problem modifying flow entry. */
+    OFPET_HELLO_FAILED    = 0,         /* Hello protocol failed. */
+    OFPET_BAD_REQUEST     = 1,         /* Request was not understood. */
+    OFPET_BAD_ACTION      = 2,         /* Error in action description. */
+    OFPET_FLOW_MOD_FAILED = 3          /* Problem modifying flow entry. */
 };
 
 /* ofp_error_msg 'code' values for OFPET_HELLO_FAILED.  'data' contains an
  * ASCII text string that may give failure details. */
 enum ofp_hello_failed_code {
-    OFPHFC_INCOMPATIBLE,        /* No compatible version. */
-    OFPHFC_EPERM                /* Permissions error. */
+    OFPHFC_INCOMPATIBLE = 0,        /* No compatible version. */
+    OFPHFC_EPERM        = 1         /* Permissions error. */
 };
 
 /* ofp_error_msg 'code' values for OFPET_BAD_REQUEST.  'data' contains at least
  * the first 64 bytes of the failed request. */
 enum ofp_bad_request_code {
-    OFPBRC_BAD_VERSION,         /* ofp_header.version not supported. */
-    OFPBRC_BAD_TYPE,            /* ofp_header.type not supported. */
-    OFPBRC_BAD_STAT,            /* ofp_stats_request.type not supported. */
-    OFPBRC_BAD_VENDOR,          /* Vendor not supported (in ofp_vendor_header
+    OFPBRC_BAD_VERSION = 0,     /* ofp_header.version not supported. */
+    OFPBRC_BAD_TYPE    = 1,     /* ofp_header.type not supported. */
+    OFPBRC_BAD_STAT    = 2,     /* ofp_stats_request.type not supported. */
+    OFPBRC_BAD_VENDOR  = 3,     /* Vendor not supported (in ofp_vendor_header
                                  * or ofp_stats_request or ofp_stats_reply). */
-    OFPBRC_BAD_SUBTYPE,         /* Vendor subtype not supported. */
-    OFPBRC_EPERM                /* Permissions error. */
+    OFPBRC_BAD_SUBTYPE = 4,     /* Vendor subtype not supported. */
+    OFPBRC_EPERM       = 5      /* Permissions error. */
 };
 
 /* ofp_error_msg 'code' values for OFPET_BAD_ACTION.  'data' contains at least
  * the first 64 bytes of the failed request. */
 enum ofp_bad_action_code {
-    OFPBAC_BAD_TYPE,           /* Unknown action type. */
-    OFPBAC_BAD_LEN,            /* Length problem in actions. */
-    OFPBAC_BAD_VENDOR,         /* Unknown vendor id specified. */
-    OFPBAC_BAD_VENDOR_TYPE,    /* Unknown action type for vendor id. */
-    OFPBAC_BAD_OUT_PORT,       /* Problem validating output action. */
-    OFPBAC_BAD_ARGUMENT,       /* Bad action argument. */
-    OFPBAC_EPERM               /* Permissions error. */
+    OFPBAC_BAD_TYPE        = 0, /* Unknown action type. */
+    OFPBAC_BAD_LEN         = 1, /* Length problem in actions. */
+    OFPBAC_BAD_VENDOR      = 2, /* Unknown vendor id specified. */
+    OFPBAC_BAD_VENDOR_TYPE = 3, /* Unknown action type for vendor id. */
+    OFPBAC_BAD_OUT_PORT    = 4, /* Problem validating output action. */
+    OFPBAC_BAD_ARGUMENT    = 5, /* Bad action argument. */
+    OFPBAC_EPERM           = 6  /* Permissions error. */
 };
 
 /* ofp_error_msg 'code' values for OFPET_FLOW_MOD_FAILED.  'data' contains
  * at least the first 64 bytes of the failed request. */
 enum ofp_flow_mod_failed_code {
-    OFPFMFC_ALL_TABLES_FULL,    /* Flow not added because of full tables. */
-    OFPFMFC_OVERLAP,            /* Attempted to add overlapping flow with
-                                 * CHECK_OVERLAP flag set. */
-    OFPFMFC_EPERM,              /* Permissions error. */
-    OFPFMFC_BAD_EMERG_TIMEOUT   /* Flow not added because of non-zero idle/hard
-                                 * timeout. */
+    OFPFMFC_ALL_TABLES_FULL   = 0,    /* Flow not added because of full tables. */
+    OFPFMFC_OVERLAP           = 1,    /* Attempted to add overlapping flow with
+                                       * CHECK_OVERLAP flag set. */
+    OFPFMFC_EPERM             = 2,    /* Permissions error. */
+    OFPFMFC_BAD_EMERG_TIMEOUT = 3     /* Flow not added because of non-zero idle/hard
+                                       * timeout. */
 };
 
 /* OFPT_ERROR: Error message (datapath -> controller). */
@@ -656,27 +656,27 @@ enum ofp_stats_types {
     /* Description of this OpenFlow switch.
      * The request body is empty.
      * The reply body is struct ofp_desc_stats. */
-    OFPST_DESC,
+    OFPST_DESC = 0,
 
     /* Individual flow statistics.
      * The request body is struct ofp_flow_stats_request.
      * The reply body is an array of struct ofp_flow_stats. */
-    OFPST_FLOW,
+    OFPST_FLOW = 1,
 
     /* Aggregate flow statistics.
      * The request body is struct ofp_aggregate_stats_request.
      * The reply body is struct ofp_aggregate_stats_reply. */
-    OFPST_AGGREGATE,
+    OFPST_AGGREGATE = 2,
 
     /* Flow table statistics.
      * The request body is empty.
      * The reply body is an array of struct ofp_table_stats. */
-    OFPST_TABLE,
+    OFPST_TABLE = 3,
 
     /* Physical port statistics.
      * The request body is empty.
      * The reply body is an array of struct ofp_port_stats. */
-    OFPST_PORT,
+    OFPST_PORT = 4,
 
     /* Vendor extension.
      * The request and reply bodies begin with a 32-bit vendor ID, which takes
