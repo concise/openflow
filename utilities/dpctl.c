@@ -821,10 +821,22 @@ put_output_action(struct ofpbuf *b, uint16_t port)
     return oao;
 }
 
+static struct ofp_action_enqueue *
+put_enqueue_action(struct ofpbuf *b, uint16_t port, uint32_t queue)
+{
+    struct ofp_action_enqueue *oao;
+
+    oao = put_action(b, sizeof *oao, OFPAT_ENQUEUE);
+    oao->len = htons(sizeof(*oao));
+    oao->port = htons(port);
+    oao->queue_id = htonl(queue);
+    return oao;
+}
+
 static void
 str_to_action(char *str, struct ofpbuf *b)
 {
-    char *act, *arg;
+    char *act, *arg, *arg2;
     char *saveptr = NULL;
 
     for (act = strtok_r(str, ", \t\r\n", &saveptr); act;
@@ -861,8 +873,15 @@ str_to_action(char *str, struct ofpbuf *b)
             struct ofp_action_header *ah;
             ah = put_action(b, sizeof *ah, OFPAT_STRIP_VLAN);
             ah->type = htons(OFPAT_STRIP_VLAN);
-        } else if (!strcasecmp(act, "output")) {
+        } else if (!strcasecmp(act, "enqueue")) {
+            arg2 = strchr(arg, ':');
+            if (arg2) {
+                *arg2 = '\0';
+                arg2++;
+            }
             put_output_action(b, str_to_u32(arg));
+        } else if (!strcasecmp(act, "output")) {
+            put_enqueue_action(b, str_to_u32(arg), str_to_u32(arg2));
         } else if (!strcasecmp(act, "TABLE")) {
             put_output_action(b, OFPP_TABLE);
         } else if (!strcasecmp(act, "NORMAL")) {
@@ -1681,6 +1700,7 @@ do_dump_queue(const struct settings *s UNUSED, int argc, char *argv[])
     uint16_t port;
     uint32_t q_id;
     struct ofp_queue_get_config_request *request;
+    struct ofpbuf *buf;
 
     /* Get queue params from the request */
     if (parse_queue_params(argc, argv, &port, &q_id, NULL) < 0) {
@@ -1689,9 +1709,10 @@ do_dump_queue(const struct settings *s UNUSED, int argc, char *argv[])
     }
 
     /* Do a normal queue get config request operation */
-    make_openflow(sizeof(*request), OFPT_QUEUE_GET_CONFIG_REQUEST, &request);
+    request = make_openflow(sizeof(*request), OFPT_QUEUE_GET_CONFIG_REQUEST,
+                            &buf);
     request->port = htons(port);
-    dump_transaction(argv[1], request);
+    dump_transaction(argv[1], buf);
 
     /* Now do the show operation to indicate possible config */
     do_queue_op(OFP_EXT_QUEUE_SHOW, argc, argv);
