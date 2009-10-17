@@ -1657,7 +1657,7 @@ do_queue_op(int cmd, int argc, char *argv[])
                 ofq_error_string(ntohs(reply->code)), argv[1]);
     } else if (cmd == OFP_EXT_QUEUE_SHOW) { 
         /* Note to self: put cfg info here */
-        fwrite(reply + 1, b->size, 1, stdout);
+        (void)fwrite(reply + 1, b->size, 1, stdout);
     }
 }
 
@@ -1680,18 +1680,21 @@ do_dump_queue(const struct settings *s UNUSED, int argc, char *argv[])
 {
     uint16_t port;
     uint32_t q_id;
+    struct ofp_queue_get_config_request *request;
 
-    /* First do a normal queue get config request operation */
-    dump_trivial_transaction(argv[1], OFPT_QUEUE_GET_CONFIG_REQUEST);
+    /* Get queue params from the request */
+    if (parse_queue_params(argc, argv, &port, &q_id, NULL) < 0) {
+        ofp_fatal(0, "Error parsing port/queue for cmd %s", argv[0]);
+        return;
+    }
+
+    /* Do a normal queue get config request operation */
+    make_openflow(sizeof(*request), OFPT_QUEUE_GET_CONFIG_REQUEST, &request);
+    request->port = htons(port);
+    dump_transaction(argv[1], request);
 
     /* Now do the show operation to indicate possible config */
     do_queue_op(OFP_EXT_QUEUE_SHOW, argc, argv);
-
-    /* Now get queue stats */
-    if (parse_queue_params(argc, argv, &port, &q_id, NULL) < 0) {
-        ofp_fatal(0, "Error parsing port/queue");
-        return;
-    }
 
     /* Then do a queue stats get */
     dump_queue_stats_transaction(argv[1], OFPST_QUEUE, port, q_id);
