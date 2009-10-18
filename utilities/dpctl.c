@@ -1576,7 +1576,7 @@ parse_queue_params(int argc, char *argv[], uint16_t *port, uint32_t *q_id,
 
 /* Get the pointer to struct member based on member offset */
 #define S_PTR(_ptr, _type, _member) \
-    ((void *)((_ptr) + offsetof(_type, _member)))
+    ((void *)(((char *)(_ptr)) + offsetof(_type, _member)))
 
 /* Length of queue request; works with 16-bit property values like min_rate */
 #define Q_REQ_LEN(prop_count) \
