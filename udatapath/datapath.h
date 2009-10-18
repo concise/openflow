@@ -57,7 +57,7 @@ struct sw_queue {
 	struct sw_port *port; /* reference to the parent port */
 	/* keep it simple for now, only one property (assuming min_rate) */
 	uint16_t property; /* one from OFPQT_ */
-	uint32_t min_rate;
+	uint16_t min_rate;
 };
   
 struct sw_port {

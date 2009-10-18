@@ -40,6 +40,126 @@
 #define THIS_MODULE VLM_slicing
 #include "vlog.h"
 
+/** Search the datapath for a specific port.
+ * @param port_no specified port
+ * @param dp the datapath to search
+ * @return port if found, NULL otherwise
+ */
+static struct sw_port *
+port_from_port_no(struct datapath *dp,uint16_t port_no) 
+{
+	struct sw_port * p;
+	LIST_FOR_EACH(p, struct sw_port, node, &dp->port_list) {
+		if(p->port_no == port_no){
+			break;
+		}
+	}
+	return p;
+}
+
+/** Search the port for a specific queue.
+ * @param queue_id specified queue id
+ * @param p the port to query
+ * @return queue if found, NULL otherwise
+ */
+static struct sw_queue *
+queue_from_queue_id(struct sw_port *p, uint32_t queue_id)
+{
+	struct sw_queue *q;
+	LIST_FOR_EACH(q, struct sw_queue, node, &p->queue_list) {
+		if(q->queue_id == queue_id) {
+			break;
+		}
+	}
+	return q;
+}
+
+static int
+new_queue(struct sw_port * port, struct sw_queue * queue, 
+		  uint32_t queue_id, struct ofp_queue_prop_min_rate * mr)
+{
+	memset(queue, '\0', sizeof *queue);
+	queue->port = port;
+	queue->queue_id = queue_id;
+	queue->property = ntohs(mr->prop_header.property);
+	queue->min_rate = ntohl(mr->rate);
+
+	list_push_back(&port->queue_list, &queue->node);
+
+	return 0;
+}
+
+
+static int
+port_add_queue(struct sw_port *p, uint32_t queue_id, struct ofp_queue_prop_min_rate * mr)
+{
+	int queue_no;
+	for (queue_no = 1; queue_no < DP_MAX_QUEUES; queue_no++) {
+		struct sw_queue *q = &p->queues[queue_no];
+		if(!q->port) {
+			return new_queue(p,q,queue_id,mr);
+		}
+	}
+	return EXFULL;
+}
+
+/* static void */
+/* recv_of_exp_queue_show(struct datapath *dp, const struct sender *sender, */
+/* 					   const void *oh) */
+/* { */
+/* 	struct sw_port *p; */
+/* 	struct openflow_queue_command_header * ofq_show; */
+/* 	uint16_t port_no; */
+
+/* 	ofq_show = (struct openflow_queue_command_header *)oh; */
+/* 	port_no = ntohs(ofq_show->port); */
+/* 	p = port_from _port_no(dp, port_no); */
+/* 	if(p) */
+
+
+/** Modifies/adds a queue. It first search if a queue with
+ * id exists for this port. If yes it modifies it, otherwise adds
+ * a ndw configuration.
+ *
+ * @param dp the related datapath
+ * @param sender request source
+ * @param oh the openflow message for queue mod.
+ */
+static void
+recv_of_exp_queue_modify(struct datapath *dp, const struct sender *sender,
+						 const void *oh)
+{
+	struct sw_port *p;
+	struct sw_queue *q;
+	struct openflow_queue_command_header * ofq_modify;
+	struct ofp_packet_queue *opq;
+	struct ofp_queue_prop_min_rate *mr;
+
+	uint16_t port_no;
+	uint32_t queue_id;
+
+	ofq_modify = (struct openflow_queue_command_header *)oh;
+	opq = (struct ofp_packet_queue *)ofq_modify->body;
+	mr = (struct ofp_queue_prop_min_rate*)opq->properties;
+
+	port_no = ntohs(ofq_modify->port);
+	queue_id = ntohl(opq->queue_id);
+
+	p = port_from_port_no(dp, port_no);
+	if(p){
+		q = queue_from_queue_id(p, queue_id);
+		if (q) {
+			/* queue exists - modify it */
+			q->property = ntohs(mr->prop_header.property);
+			q->min_rate = ntohl(mr->rate);
+		}
+		else {
+			/* create new queue */
+			port_add_queue(p,queue_id, mr);
+		}
+	}
+}
+
 int of_ext_recv_msg(struct datapath *dp UNUSED, const struct sender *sender UNUSED,
         const void *oh)
 {
@@ -47,6 +167,7 @@ int of_ext_recv_msg(struct datapath *dp UNUSED, const struct sender *sender UNUS
 
     switch (ntohl(ofexth->header.subtype)) {
     case OFP_EXT_QUEUE_MODIFY: {
+		recv_of_exp_queue_modify(dp,sender,oh);
 		VLOG_ERR("Received OFP_EXT_QUEUE_MODIFY command");
 		return 0;
     }

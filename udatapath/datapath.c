@@ -658,6 +658,14 @@ dp_output_control(struct datapath *dp, struct ofpbuf *buffer, int in_port,
 }
 
 static void
+fill_queue_desc(struct sw_queue *q, struct ofp_packet_queue *desc)
+{
+	desc->queue_id = htonl(q->queue_id);
+	desc->len = 8;
+}
+
+
+static void
 fill_port_desc(struct sw_port *p, struct ofp_phy_port *desc)
 {
     desc->port_no = htons(p->port_no);
@@ -1667,10 +1675,49 @@ recv_echo_reply(struct datapath *dp UNUSED, const struct sender *sender UNUSED,
 }
 
 static int
-recv_queue_get_config_request(struct datapath *dp UNUSED, const struct sender *sender UNUSED,
-							  const void *oh UNUSED)
+recv_queue_get_config_request(struct datapath *dp, const struct sender *sender,
+							  const void *oh)
 {
-	VLOG_ERR("Received Queue Get Config Request");
+	struct ofpbuf *buffer;
+	struct ofp_queue_get_config_reply *ofq_reply;
+	const struct ofp_queue_get_config_request *ofq_request;
+	struct sw_port *p, *pn;
+	struct sw_queue *q, *qn;
+
+	ofq_request = (struct ofp_queue_get_config_request *)oh;
+
+	VLOG_ERR("Received Queue get Config request for port %d",ntohs(ofq_request->port));
+
+	/* Find port under query */
+	LIST_FOR_EACH_SAFE(p,pn, struct sw_port, node, &dp->port_list) {
+		if(p->port_no == ntohs(ofq_request->port)) {
+			VLOG_ERR("Port found!");
+			break;
+		}
+	}
+	/* if the port under query doesn't exist, send an error */
+	if (p &&  (p->port_no != ofq_request->port)) {
+		VLOG_ERR("port %d doesn't exist - sending error message",ofq_request->port);
+		// TODO define appropriate error message
+		dp_send_error_msg(dp, sender, OFPET_BAD_ACTION, OFPBAC_BAD_OUT_PORT,
+						  oh, ntohs(ofq_request->header.length));
+
+	}
+	else {
+		ofq_reply = make_openflow_reply(sizeof *ofq_reply, OFPT_QUEUE_GET_CONFIG_REPLY,
+										sender, &buffer);
+		
+		//		ofq_reply->datapath_id = htonll(dp->id);
+		ofq_reply->port = ofq_request->port;
+		LIST_FOR_EACH_SAFE(q,qn, struct sw_queue, node, &p->queue_list) {
+			struct ofp_packet_queue * opq = ofpbuf_put_uninit(buffer, sizeof *opq);
+			memset(opq,0,sizeof *opq);
+			if(q)
+				fill_queue_desc(q,opq);
+		}
+		send_openflow_buffer(dp, buffer, sender);
+	}
+
 	return 0;
 }
 
