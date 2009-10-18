@@ -1681,23 +1681,26 @@ recv_queue_get_config_request(struct datapath *dp, const struct sender *sender,
 	struct ofpbuf *buffer;
 	struct ofp_queue_get_config_reply *ofq_reply;
 	const struct ofp_queue_get_config_request *ofq_request;
-	struct sw_port *p, *pn;
-	struct sw_queue *q, *qn;
+	struct sw_port *p; 
+	struct sw_queue *q;
+	uint16_t port_no;
 
 	ofq_request = (struct ofp_queue_get_config_request *)oh;
+	port_no = ntohs(ofq_request->port);
 
-	VLOG_ERR("Received Queue get Config request for port %d",ntohs(ofq_request->port));
+
+	VLOG_ERR("Received Queue get Config request for port %d",port_no);
 
 	/* Find port under query */
-	LIST_FOR_EACH_SAFE(p,pn, struct sw_port, node, &dp->port_list) {
-		if(p->port_no == ntohs(ofq_request->port)) {
+	LIST_FOR_EACH(p, struct sw_port, node, &dp->port_list) {
+		if(p->port_no == port_no) {
 			VLOG_ERR("Port found!");
 			break;
 		}
 	}
 	/* if the port under query doesn't exist, send an error */
-	if (p &&  (p->port_no != ofq_request->port)) {
-		VLOG_ERR("port %d doesn't exist - sending error message",ofq_request->port);
+	if (!p ||  (p->port_no != port_no)) {
+		VLOG_ERR("port %d doesn't exist - sending error message",port_no);
 		// TODO define appropriate error message
 		dp_send_error_msg(dp, sender, OFPET_BAD_ACTION, OFPBAC_BAD_OUT_PORT,
 						  oh, ntohs(ofq_request->header.length));
@@ -1706,14 +1709,12 @@ recv_queue_get_config_request(struct datapath *dp, const struct sender *sender,
 	else {
 		ofq_reply = make_openflow_reply(sizeof *ofq_reply, OFPT_QUEUE_GET_CONFIG_REPLY,
 										sender, &buffer);
-		
-		//		ofq_reply->datapath_id = htonll(dp->id);
-		ofq_reply->port = ofq_request->port;
-		LIST_FOR_EACH_SAFE(q,qn, struct sw_queue, node, &p->queue_list) {
+		ofq_reply->port = htons(port_no);
+		LIST_FOR_EACH(q, struct sw_queue, node, &p->queue_list) {
 			struct ofp_packet_queue * opq = ofpbuf_put_uninit(buffer, sizeof *opq);
 			memset(opq,0,sizeof *opq);
-			if(q)
-				fill_queue_desc(q,opq);
+			fill_queue_desc(q,opq);
+			VLOG_ERR("Found q %d with rate %d at port %d",q->queue_id, q->min_rate,port_no);
 		}
 		send_openflow_buffer(dp, buffer, sender);
 	}
