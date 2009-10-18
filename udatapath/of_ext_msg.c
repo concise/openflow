@@ -145,16 +145,20 @@ recv_of_exp_queue_modify(struct datapath *dp, const struct sender *sender,
 	port_no = ntohs(ofq_modify->port);
 	queue_id = ntohl(opq->queue_id);
 
+	VLOG_ERR("Modify queue %d at port %d",queue_id, port_no);
+
 	p = port_from_port_no(dp, port_no);
 	if(p){
 		q = queue_from_queue_id(p, queue_id);
 		if (q) {
 			/* queue exists - modify it */
+			VLOG_ERR("Modifying existing queue %d at port %d", queue_id, port_no);
 			q->property = ntohs(mr->prop_header.property);
 			q->min_rate = ntohl(mr->rate);
 		}
 		else {
 			/* create new queue */
+			VLOG_ERR("Create new queue at port %d : id:%d, rate:%d",port_no, queue_id, ntohl(mr->rate));
 			port_add_queue(p,queue_id, mr);
 		}
 	}
