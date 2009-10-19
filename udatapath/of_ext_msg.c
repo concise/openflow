@@ -103,20 +103,6 @@ port_add_queue(struct sw_port *p, uint32_t queue_id, struct ofp_queue_prop_min_r
 	return EXFULL;
 }
 
-/* static void */
-/* recv_of_exp_queue_show(struct datapath *dp, const struct sender *sender, */
-/* 					   const void *oh) */
-/* { */
-/* 	struct sw_port *p; */
-/* 	struct openflow_queue_command_header * ofq_show; */
-/* 	uint16_t port_no; */
-
-/* 	ofq_show = (struct openflow_queue_command_header *)oh; */
-/* 	port_no = ntohs(ofq_show->port); */
-/* 	p = port_from _port_no(dp, port_no); */
-/* 	if(p) */
-
-
 /** Modifies/adds a queue. It first search if a queue with
  * id exists for this port. If yes it modifies it, otherwise adds
  * a ndw configuration.
@@ -163,8 +149,11 @@ recv_of_exp_queue_modify(struct datapath *dp, const struct sender *sender,
 		}
 	}
 }
-
-int of_ext_recv_msg(struct datapath *dp UNUSED, const struct sender *sender UNUSED,
+/**
+ * Receives an experimental message and pass it
+ * to the appropriate handler 
+ */
+int of_ext_recv_msg(struct datapath *dp, const struct sender *sender,
         const void *oh)
 {
     const struct openflow_queue_command_header  *ofexth = oh;
