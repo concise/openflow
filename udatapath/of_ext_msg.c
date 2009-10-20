@@ -35,6 +35,8 @@
 #include <arpa/inet.h>
 #include "openflow/openflow-ext.h"
 #include "of_ext_msg.h"
+#include "netdev.h"
+#include "datapath.h"
 
 /* TODO: Remove when development is over */
 #define THIS_MODULE VLM_slicing
@@ -51,10 +53,10 @@ port_from_port_no(struct datapath *dp,uint16_t port_no)
 	struct sw_port * p;
 	LIST_FOR_EACH(p, struct sw_port, node, &dp->port_list) {
 		if(p->port_no == port_no){
-			break;
+			return p;
 		}
 	}
-	return p;
+	return NULL;
 }
 
 /** Search the port for a specific queue.
@@ -66,12 +68,13 @@ static struct sw_queue *
 queue_from_queue_id(struct sw_port *p, uint32_t queue_id)
 {
 	struct sw_queue *q;
+
 	LIST_FOR_EACH(q, struct sw_queue, node, &p->queue_list) {
 		if(q->queue_id == queue_id) {
-			break;
+			return q;
 		}
 	}
-	return q;
+	return NULL;
 }
 
 static int
@@ -82,13 +85,12 @@ new_queue(struct sw_port * port, struct sw_queue * queue,
 	queue->port = port;
 	queue->queue_id = queue_id;
 	queue->property = ntohs(mr->prop_header.property);
-	queue->min_rate = ntohl(mr->rate);
+	queue->min_rate = ntohs(mr->rate);
 
 	list_push_back(&port->queue_list, &queue->node);
 
 	return 0;
 }
-
 
 static int
 port_add_queue(struct sw_port *p, uint32_t queue_id, struct ofp_queue_prop_min_rate * mr)
@@ -121,8 +123,10 @@ recv_of_exp_queue_modify(struct datapath *dp, const struct sender *sender,
 	struct ofp_packet_queue *opq;
 	struct ofp_queue_prop_min_rate *mr;
 
+	int error;
 	uint16_t port_no;
 	uint32_t queue_id;
+
 
 	ofq_modify = (struct openflow_queue_command_header *)oh;
 	opq = (struct ofp_packet_queue *)ofq_modify->body;
@@ -139,14 +143,32 @@ recv_of_exp_queue_modify(struct datapath *dp, const struct sender *sender,
 		if (q) {
 			/* queue exists - modify it */
 			VLOG_ERR("Modifying existing queue %d at port %d", queue_id, port_no);
-			q->property = ntohs(mr->prop_header.property);
-			q->min_rate = ntohl(mr->rate);
+			error = netdev_change_class(p->netdev,(uint16_t)queue_id, ntohs(mr->rate));
+			if (error) {
+				VLOG_ERR("Failed to update queue %d", queue_id);
+				/* TODO: send appropriate error */
+			}
+			else {
+				/* TODO : Should call tc here to modify the queue */
+				q->property = ntohs(mr->prop_header.property);
+				q->min_rate = ntohs(mr->rate);
+			}
 		}
 		else {
 			/* create new queue */
-			VLOG_ERR("Create new queue at port %d : id:%d, rate:%d",port_no, queue_id, ntohl(mr->rate));
-			port_add_queue(p,queue_id, mr);
+			VLOG_ERR("Create new queue at port %d : id:%d, rate:%d",port_no, queue_id, ntohs(mr->rate));
+			error = netdev_setup_class(p->netdev,(uint16_t)queue_id, ntohs(mr->rate));
+			if (error) {
+				VLOG_ERR("Failed to configure queue %d", queue_id);
+				/* TODO: send appropriate error */
+			}
+			else {
+				port_add_queue(p,queue_id, mr);
+			}
 		}
+	}
+	else {
+		VLOG_ERR("Failed to create/modify queue - port %d doesn't exist",port_no);
 	}
 }
 /**
