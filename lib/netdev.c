@@ -243,12 +243,15 @@ do_remove_qdisc(const char *netdev_name)
  * @param rate the minimum rate for this queue in kbps
  * @return 0 on success, non-zero value when the configuration was not successful.
  */
-static int
-do_setup_class(const char *netdev_name, uint16_t class_id, uint32_t rate, uint32_t ceil)
+int
+netdev_setup_class(const struct netdev *netdev, uint16_t class_id, uint32_t rate)
 {
 	char command[1024];
+	char * netdev_name;
 
-	snprintf(command, sizeof(command), COMMAND_ADD_CLASS, netdev_name, class_id, rate,ceil);
+	netdev_name = netdev->name;
+
+	snprintf(command, sizeof(command), COMMAND_ADD_CLASS, netdev->name, class_id, rate, TC_MAX_RATE);
 	if(system(command) != 0) {
 		VLOG_WARN("Problem configuring class %d for device %s",class_id, netdev_name);
 		return -1;
@@ -262,9 +265,12 @@ do_setup_class(const char *netdev_name, uint16_t class_id, uint32_t rate, uint32
  * @return 0 on success
  */
 int
-netdev_setup_slicing(const char *netdev_name)
+netdev_setup_slicing(const struct netdev *netdev)
 {
 	int error;
+	char * netdev_name;
+
+	netdev_name = netdev->name;
 
 	/* tap (local) device should not have
 	 * queue configuration - do nothing */
@@ -289,7 +295,7 @@ netdev_setup_slicing(const char *netdev_name)
 	 * http://luxik.cdi.cz/~devik/qos/htb/ 
 	 * tc doesn't requires a min-rate to configure a class. 
 	 * We put a small bandwidth, since 0 or 1 is not acceptable. */
-	error = do_setup_class(netdev_name,TC_DEFAULT_CLASS,TC_MIN_RATE, TC_MAX_RATE);
+	error = netdev_setup_class(netdev,TC_DEFAULT_CLASS,TC_MIN_RATE);
 	if (error) {
 		return error;
 	}
