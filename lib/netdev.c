@@ -332,8 +332,8 @@ netdev_setup_slicing(const struct netdev *netdev)
 	 * efficiently, we need all the classes under a root class. For details, refer to :
 	 * http://luxik.cdi.cz/~devik/qos/htb/ 
 	 * tc doesn't requires a min-rate to configure a class. 
-	 * We put a small bandwidth, since 0 or 1 is not acceptable. */
-	error = netdev_setup_class(netdev,TC_DEFAULT_CLASS,TC_MIN_RATE);
+	 * We put the max-rate. All the subclasses, will share this bandwidth */
+	error = netdev_setup_class(netdev,TC_DEFAULT_CLASS,1000);
 	if (error) {
 		return error;
 	}
