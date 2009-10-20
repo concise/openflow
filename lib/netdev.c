@@ -194,6 +194,7 @@ get_ipv6_address(const char *name, struct in6_addr *in6)
 #define COMMAND_ADD_DEV_QDISC "/sbin/tc qdisc add dev %s root handle 1: htb default %x"
 #define COMMAND_DEL_DEV_QDISC "/sbin/tc qdisc del dev %s root"
 #define COMMAND_ADD_CLASS "/sbin/tc class add dev %s parent 1: classid 1:%x htb rate %dkbit ceil %dkbit"
+#define COMMAND_CHANGE_CLASS "/sbin/tc class change dev %s parent 1: classid 1:%x htb rate %dkbit ceil %dkbit"
 
 /** Setup a classful queue for the specific device. Configured according to HTB protocol.
  * Note that this is linux specific. You will need to replace this with the appropriate
@@ -244,16 +245,53 @@ do_remove_qdisc(const char *netdev_name)
  * @return 0 on success, non-zero value when the configuration was not successful.
  */
 int
-netdev_setup_class(const struct netdev *netdev, uint16_t class_id, uint32_t rate)
+netdev_setup_class(const struct netdev *netdev, uint16_t class_id, uint16_t rate)
 {
 	char command[1024];
 	char * netdev_name;
+	int actual_rate;
 
 	netdev_name = netdev->name;
 
-	snprintf(command, sizeof(command), COMMAND_ADD_CLASS, netdev->name, class_id, rate, TC_MAX_RATE);
+	/* we need to translate from .1% to kbps */
+	/* TODO : why netdev->speed doesn't report correct value? */
+	//	actual_rate = (rate*netdev->speed)/1000;
+	actual_rate = (rate*TC_MAX_RATE)/1000;
+
+	snprintf(command, sizeof(command), COMMAND_ADD_CLASS, netdev->name, class_id, actual_rate, TC_MAX_RATE);
 	if(system(command) != 0) {
-		VLOG_WARN("Problem configuring class %d for device %s",class_id, netdev_name);
+		VLOG_ERR("Problem configuring class %d for device %s",class_id, netdev_name);
+		return -1;
+	}
+
+	return 0;
+}
+
+/** Changes a class already defined.
+ *
+ * @param netdev the device under configuration
+ * @param class_id unique identifier for this queue. TC limits this to 16-bits, 
+ * so we need to keep an internal mapping between class_id and OpenFlow queue_id
+ * @param rate the minimum rate for this queue in kbps
+ * @return 0 on success, non-zero value when the configuration was not successful.
+ */
+int
+netdev_change_class(const struct netdev *netdev, uint16_t class_id, uint16_t rate)
+{
+	char command[1024];
+	char * netdev_name;
+	int actual_rate;
+
+	netdev_name = netdev->name;
+
+	/* we need to translate from .1% to kbps */
+	/* TODO : why netdev->speed doesn't report correct value? */
+	//	actual_rate = (rate*netdev->speed)/1000;
+	actual_rate = (rate*TC_MAX_RATE)/1000;
+
+	snprintf(command, sizeof(command), COMMAND_CHANGE_CLASS, netdev->name, class_id, actual_rate, TC_MAX_RATE);
+	if(system(command) != 0) {
+		VLOG_ERR("Problem configuring class %d for device %s",class_id, netdev_name);
 		return -1;
 	}
 
@@ -274,7 +312,7 @@ netdev_setup_slicing(const struct netdev *netdev)
 
 	/* tap (local) device should not have
 	 * queue configuration - do nothing */
-    if (!strncmp(netdev_name, "tap:", 4)) {
+    if (!strncmp(netdev_name, "tap", 3)) {
         return 0;
 	}
 

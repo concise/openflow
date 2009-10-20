@@ -230,6 +230,13 @@ new_port(struct datapath *dp, struct sw_port *port, uint16_t port_no,
                  netdev_name, in6_name);
     }
 
+	error = netdev_setup_slicing(netdev);
+	if (error) {
+		VLOG_ERR("failed to configure slicing on %s device",netdev_name);
+		netdev_close(netdev);
+		return error;
+	}
+
     memset(port, '\0', sizeof *port);
 
 	list_init(&port->queue_list);
