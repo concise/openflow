@@ -54,6 +54,7 @@ struct sw_queue {
 	unsigned long long int tx_packets;
 	unsigned long long int tx_bytes;
 	uint32_t queue_id;
+	uint16_t class_id; /* internal mapping from OF queue_id to tc class_id */
 	struct sw_port *port; /* reference to the parent port */
 	/* keep it simple for now, only one property (assuming min_rate) */
 	uint16_t property; /* one from OFPQT_ */

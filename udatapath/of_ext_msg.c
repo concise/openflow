@@ -79,11 +79,17 @@ queue_from_queue_id(struct sw_port *p, uint32_t queue_id)
 
 static int
 new_queue(struct sw_port * port, struct sw_queue * queue, 
-		  uint32_t queue_id, struct ofp_queue_prop_min_rate * mr)
+		  uint32_t queue_id, uint16_t class_id, struct ofp_queue_prop_min_rate * mr)
 {
 	memset(queue, '\0', sizeof *queue);
 	queue->port = port;
 	queue->queue_id = queue_id;
+	/* class_id is the internal mapping to class. It is the offset
+	 * in the array of queues for each port. Note that class_id is 
+	 * local to port, so we don't have any conflict.
+	 * tc uses 16-bit class_id, so we cannot use the queue_id
+	 * field */
+	queue->class_id = class_id;
 	queue->property = ntohs(mr->prop_header.property);
 	queue->min_rate = ntohs(mr->rate);
 
@@ -99,7 +105,7 @@ port_add_queue(struct sw_port *p, uint32_t queue_id, struct ofp_queue_prop_min_r
 	for (queue_no = 1; queue_no < DP_MAX_QUEUES; queue_no++) {
 		struct sw_queue *q = &p->queues[queue_no];
 		if(!q->port) {
-			return new_queue(p,q,queue_id,mr);
+			return new_queue(p,q,queue_id,queue_no,mr);
 		}
 	}
 	return EXFULL;
@@ -144,7 +150,7 @@ recv_of_exp_queue_modify(struct datapath *dp,
 		if (q) {
 			/* queue exists - modify it */
 			VLOG_ERR("Modifying existing queue %d at port %d", queue_id, port_no);
-			error = netdev_change_class(p->netdev,(uint16_t)queue_id, ntohs(mr->rate));
+			error = netdev_change_class(p->netdev,q->class_id, ntohs(mr->rate));
 			if (error) {
 				VLOG_ERR("Failed to update queue %d", queue_id);
 				/* TODO: send appropriate error */
@@ -158,13 +164,12 @@ recv_of_exp_queue_modify(struct datapath *dp,
 		else {
 			/* create new queue */
 			VLOG_ERR("Create new queue at port %d : id:%d, rate:%d",port_no, queue_id, ntohs(mr->rate));
-			error = netdev_setup_class(p->netdev,(uint16_t)queue_id, ntohs(mr->rate));
+			port_add_queue(p,queue_id, mr);
+			q = queue_from_queue_id(p, queue_id);
+			error = netdev_setup_class(p->netdev,q->class_id, ntohs(mr->rate));
 			if (error) {
 				VLOG_ERR("Failed to configure queue %d", queue_id);
 				/* TODO: send appropriate error */
-			}
-			else {
-				port_add_queue(p,queue_id, mr);
 			}
 		}
 	}
@@ -172,6 +177,7 @@ recv_of_exp_queue_modify(struct datapath *dp,
 		VLOG_ERR("Failed to create/modify queue - port %d doesn't exist",port_no);
 	}
 }
+
 /**
  * Receives an experimental message and pass it
  * to the appropriate handler 
