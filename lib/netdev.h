@@ -93,6 +93,7 @@ int netdev_set_flags(struct netdev *, enum netdev_flags, bool permanent);
 int netdev_turn_flags_on(struct netdev *, enum netdev_flags, bool permanent);
 int netdev_turn_flags_off(struct netdev *, enum netdev_flags, bool permanent);
 int netdev_arp_lookup(const struct netdev *, uint32_t ip, uint8_t mac[6]);
+int netdev_setup_slicing(const char *);
 
 void netdev_enumerate(struct svec *);
 int netdev_nodev_get_flags(const char *netdev_name, enum netdev_flags *);

@@ -229,7 +229,7 @@ do_remove_qdisc(const char *netdev_name)
 	snprintf(command, sizeof(command), COMMAND_DEL_DEV_QDISC, netdev_name);
 	system(command);
 
-	/* there is no need for a device to be configured. therefore no need to indicate 
+	/* there is no need for a device to already be configured. therefore no need to indicate 
 	 * any error */
 	return 0;
 }
@@ -257,7 +257,45 @@ do_setup_class(const char *netdev_name, uint16_t class_id, uint32_t rate, uint32
 	return 0;
 }
 
+/** Configures a port to support slicing 
+ * @param netdev_name the device under configuration 
+ * @return 0 on success
+ */
+int
+netdev_setup_slicing(const char *netdev_name)
+{
+	int error;
 
+	/* tap (local) device should not have
+	 * queue configuration - do nothing */
+    if (!strncmp(netdev_name, "tap:", 4)) {
+        return 0;
+	}
+
+	/* remove any previous queue configuration for this device */
+	error = do_remove_qdisc(netdev_name);
+	if(error) {
+		return error;
+	}
+
+	/* Configure tc queue discipline to allow slicing queues */
+	error = do_setup_qdisc(netdev_name);
+	if (error) {
+		return error;
+	}
+
+	/* This define a root class for the queue disc. In order to allow spare bandwidth to be used
+	 * efficiently, we need all the classes under a root class. For details, refer to :
+	 * http://luxik.cdi.cz/~devik/qos/htb/ 
+	 * tc doesn't requires a min-rate to configure a class. 
+	 * We put a small bandwidth, since 0 or 1 is not acceptable. */
+	error = do_setup_class(netdev_name,TC_DEFAULT_CLASS,TC_MIN_RATE, TC_MAX_RATE);
+	if (error) {
+		return error;
+	}
+
+	return 0;
+}
 
 static void
 do_ethtool(struct netdev *netdev) 
@@ -558,29 +596,6 @@ do_open_netdev(const char *name, int ethertype, int tap_fd,
 
     /* Get speed, features. */
     do_ethtool(netdev);
-
-	/* remove any previous queue configuration for this device */
-	error = do_remove_qdisc(netdev->name);
-	if(error) {
-		goto error_already_set;
-
-	}
-
-	/* Configure tc queue discipline to allow slicing queues */
-	error = do_setup_qdisc(netdev->name);
-	if (error) {
-		goto error_already_set;
-	}
-
-	/* This define a root class for the queue disc. In order to allow spare bandwidth to be used
-	 * efficiently, we need all the classes under a root class. For details, refer to :
-	 * http://luxik.cdi.cz/~devik/qos/htb/ 
-	 * tc doesn't requires a min-rate to configure a class. 
-	 * We put a small bandwidth, since 0 or 1 is not acceptable. */
-	error = do_setup_class(netdev->name,TC_DEFAULT_CLASS,TC_MIN_RATE, TC_MAX_RATE);
-	if (error) {
-		goto error_already_set;
-	}
 
     /* Save flags to restore at close or exit. */
     error = get_flags(netdev->name, &netdev->save_flags);
