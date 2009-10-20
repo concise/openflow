@@ -180,6 +180,85 @@ get_ipv6_address(const char *name, struct in6_addr *in6)
     fclose(file);
 }
 
+/* This is the queue_id for packets that do not match in any other queue.
+ * It has min_rate = 0. This is not a placeholder for best-effort traffic
+ * if there is a need of at least X Mbps bandwidth for it. You need to configure
+ * a queue if this is the case */
+#define TC_DEFAULT_CLASS 0xffff
+/* ceil defaults to the same value as min_rate if not configured.
+ * make sure that there is no ceil by explicitly defning the max-rate
+ * to 1Gbps */
+#define TC_MAX_RATE 1000000
+#define TC_MIN_RATE 1
+/* This configures an HTB qdisc under the defined device. */
+#define COMMAND_ADD_DEV_QDISC "/sbin/tc qdisc add dev %s root handle 1: htb default %x"
+#define COMMAND_DEL_DEV_QDISC "/sbin/tc qdisc del dev %s root"
+#define COMMAND_ADD_CLASS "/sbin/tc class add dev %s parent 1: classid 1:%x htb rate %dkbit ceil %dkbit"
+
+/** Setup a classful queue for the specific device. Configured according to HTB protocol.
+ * Note that this is linux specific. You will need to replace this with the appropriate
+ * abstraction for different OS.
+ *
+ * More on Linux Traffic Control and Hierarchical Token Bucket at :
+ * http://luxik.cdi.cz/~devik/qos/htb/
+ *
+ * @param netdev_name the device to be configured 
+ * @return 0 on success, non-zero value when the configuration was not successful.
+ */
+static int
+do_setup_qdisc(const char *netdev_name)
+{
+	char command[1024];
+
+	snprintf(command, sizeof(command), COMMAND_ADD_DEV_QDISC, netdev_name, TC_DEFAULT_CLASS);
+	if(system(command) != 0) {
+		VLOG_WARN("Problem configuring qdisc for device %s",netdev_name);
+		return -1;
+	}
+	return 0;
+}
+
+/** Remove current queue disciplines from a net device
+ * @param netdev_name the device under configuration 
+ */
+static int
+do_remove_qdisc(const char *netdev_name)
+{
+	char command[1024];
+
+	snprintf(command, sizeof(command), COMMAND_DEL_DEV_QDISC, netdev_name);
+	system(command);
+
+	/* there is no need for a device to be configured. therefore no need to indicate 
+	 * any error */
+	return 0;
+}
+
+/** Defines a class for the specific queue discipline. A class
+ * represents an OpenFlow queue.
+ *
+ * @param netdev the device under configuration
+ * @param class_id unique identifier for this queue. TC limits this to 16-bits, 
+ * so we need to keep an internal mapping between class_id and OpenFlow queue_id
+ * @param rate the minimum rate for this queue in kbps
+ * @return 0 on success, non-zero value when the configuration was not successful.
+ */
+static int
+do_setup_class(const char *netdev_name, uint16_t class_id, uint32_t rate, uint32_t ceil)
+{
+	char command[1024];
+
+	snprintf(command, sizeof(command), COMMAND_ADD_CLASS, netdev_name, class_id, rate,ceil);
+	if(system(command) != 0) {
+		VLOG_WARN("Problem configuring class %d for device %s",class_id, netdev_name);
+		return -1;
+	}
+
+	return 0;
+}
+
+
+
 static void
 do_ethtool(struct netdev *netdev) 
 {
@@ -479,6 +558,29 @@ do_open_netdev(const char *name, int ethertype, int tap_fd,
 
     /* Get speed, features. */
     do_ethtool(netdev);
+
+	/* remove any previous queue configuration for this device */
+	error = do_remove_qdisc(netdev->name);
+	if(error) {
+		goto error_already_set;
+
+	}
+
+	/* Configure tc queue discipline to allow slicing queues */
+	error = do_setup_qdisc(netdev->name);
+	if (error) {
+		goto error_already_set;
+	}
+
+	/* This define a root class for the queue disc. In order to allow spare bandwidth to be used
+	 * efficiently, we need all the classes under a root class. For details, refer to :
+	 * http://luxik.cdi.cz/~devik/qos/htb/ 
+	 * tc doesn't requires a min-rate to configure a class. 
+	 * We put a small bandwidth, since 0 or 1 is not acceptable. */
+	error = do_setup_class(netdev->name,TC_DEFAULT_CLASS,TC_MIN_RATE, TC_MAX_RATE);
+	if (error) {
+		goto error_already_set;
+	}
 
     /* Save flags to restore at close or exit. */
     error = get_flags(netdev->name, &netdev->save_flags);
