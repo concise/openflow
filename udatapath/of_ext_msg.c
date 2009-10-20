@@ -114,8 +114,9 @@ port_add_queue(struct sw_port *p, uint32_t queue_id, struct ofp_queue_prop_min_r
  * @param oh the openflow message for queue mod.
  */
 static void
-recv_of_exp_queue_modify(struct datapath *dp, const struct sender *sender,
-						 const void *oh)
+recv_of_exp_queue_modify(struct datapath *dp, 
+                         const struct sender *sender UNUSED,
+                         const void *oh)
 {
 	struct sw_port *p;
 	struct sw_queue *q;
@@ -188,10 +189,6 @@ int of_ext_recv_msg(struct datapath *dp, const struct sender *sender,
     }
 	case OFP_EXT_QUEUE_DELETE: {
 		VLOG_ERR("Received OFP_EXT_QUEUE_DELETE command");
-		return 0;
-    }
-	case OFP_EXT_QUEUE_SHOW: {
-		VLOG_ERR("Received OFP_EXT_QUEUE_SHOW command");
 		return 0;
     }
     default:

@@ -479,17 +479,22 @@ dump_trivial_stats_transaction(const char *vconn_name, uint8_t stats_type)
     dump_stats_transaction(vconn_name, request);
 }
 
+/* Get the pointer to struct member based on member offset */
+#define S_PTR(_ptr, _type, _member) \
+    ((void *)(((char *)(_ptr)) + offsetof(_type, _member)))
+
 static void
 dump_queue_stats_transaction(const char *vconn_name, uint8_t stats_type,
                              uint16_t port, uint32_t q_id)
 {
     struct ofpbuf *request;
     struct ofp_queue_stats_request *q_req;
+    struct ofp_stats_request *stats_req;
 
-    alloc_stats_request(sizeof(struct ofp_queue_stats_request), stats_type,
-                        &request);
-    q_req = (struct ofp_queue_stats_request *)
-        offsetof(struct ofp_stats_request, body);
+    stats_req = alloc_stats_request(sizeof(struct ofp_queue_stats_request), 
+                                    stats_type, &request);
+    q_req = S_PTR(stats_req, struct ofp_stats_request, body);
+
     q_req->port_no = htons(port);
     q_req->queue_id = htonl(q_id);
     dump_stats_transaction(vconn_name, request);
@@ -879,9 +884,9 @@ str_to_action(char *str, struct ofpbuf *b)
                 *arg2 = '\0';
                 arg2++;
             }
-            put_output_action(b, str_to_u32(arg));
-        } else if (!strcasecmp(act, "output")) {
             put_enqueue_action(b, str_to_u32(arg), str_to_u32(arg2));
+        } else if (!strcasecmp(act, "output")) {
+            put_output_action(b, str_to_u32(arg));
         } else if (!strcasecmp(act, "TABLE")) {
             put_output_action(b, OFPP_TABLE);
         } else if (!strcasecmp(act, "NORMAL")) {
@@ -1574,10 +1579,6 @@ parse_queue_params(int argc, char *argv[], uint16_t *port, uint32_t *q_id,
     return 0;
 }
 
-/* Get the pointer to struct member based on member offset */
-#define S_PTR(_ptr, _type, _member) \
-    ((void *)(((char *)(_ptr)) + offsetof(_type, _member)))
-
 /* Length of queue request; works with 16-bit property values like min_rate */
 #define Q_REQ_LEN(prop_count) \
     (sizeof(struct ofp_packet_queue) + Q_PROP_LEN(prop_count))
@@ -1634,7 +1635,6 @@ static void
 do_queue_op(int cmd, int argc, char *argv[])
 {
     struct openflow_queue_command_header *request;
-    struct ofp_error_msg *reply;
     struct vconn *vconn;
     struct ofpbuf *b;
     uint16_t port;
@@ -1657,27 +1657,9 @@ do_queue_op(int cmd, int argc, char *argv[])
     printf("made request %p, running transaction\n", request);
 
     open_vconn(argv[1], &vconn);
-    run(vconn_transact(vconn, b, &b), "que op to %s", argv[1]);
+    /* Unacknowledged call for now */
+    send_openflow_buffer(vconn, b);
     vconn_close(vconn);
-
-    if (b->size < sizeof *reply) {
-        ofp_fatal(0, "short reply (%zu bytes)", b->size);
-    }
-    reply = b->data;
-    printf("got reply hdr type %d. err type %d\n", reply->header.type,
-           ntohs(reply->type));
-    if (reply->header.type != OFPT_ERROR
-        || ntohs(reply->type) != OFPET_QUEUE_OP) {
-        ofp_print(stderr, b->data, b->size, 2);
-        ofp_fatal(0, "bad reply");
-    }
-    if (ntohs(reply->code) != OFQ_ERR_NONE) {
-        fprintf(stderr, "Error %s returned from queue op %s\n",
-                ofq_error_string(ntohs(reply->code)), argv[1]);
-    } else if (cmd == OFP_EXT_QUEUE_SHOW) { 
-        /* Note to self: put cfg info here */
-        (void)fwrite(reply + 1, b->size, 1, stdout);
-    }
 }
 
 char *openflow_queue_error_strings[] = OPENFLOW_QUEUE_ERROR_STRINGS_DEF;
@@ -1713,9 +1695,6 @@ do_dump_queue(const struct settings *s UNUSED, int argc, char *argv[])
                             &buf);
     request->port = htons(port);
     dump_transaction(argv[1], buf);
-
-    /* Now do the show operation to indicate possible config */
-    do_queue_op(OFP_EXT_QUEUE_SHOW, argc, argv);
 
     /* Then do a queue stats get */
     dump_queue_stats_transaction(argv[1], OFPST_QUEUE, port, q_id);

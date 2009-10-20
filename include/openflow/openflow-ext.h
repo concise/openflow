@@ -22,7 +22,6 @@ enum ofp_extension_commands { /* Queue configuration commands */
     /* Queue Commands */
     OFP_EXT_QUEUE_MODIFY,  /* Add and/or modify */
     OFP_EXT_QUEUE_DELETE,  /* Remove a queue */
-    OFP_EXT_QUEUE_SHOW,    /* Show queue config, stats, available queues */
 
     OFP_EXT_COUNT
 };
