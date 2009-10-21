@@ -1271,6 +1271,52 @@ ofp_vendor(struct ds *string, const void *oh, size_t len, int verbosity)
     }
 }
 
+/* 
+ * Write queue props into string and return number of bytes
+ * processed.  For now, only report min rate; no error checking
+ */
+static int
+show_queue_props(struct ds *string, const struct ofp_packet_queue *queue_desc)
+{
+    struct ofp_queue_prop_min_rate *min_rate_prop;
+
+    if (ntohs(queue_desc->len) > sizeof(struct ofp_packet_queue)) {
+        /* Should switch on type of property and accumulate length fields */
+        min_rate_prop = 
+            (struct ofp_queue_prop_min_rate *)(queue_desc->properties);
+        /* Assert: len == 16 */
+        /* Assert: property == OFPQT_MIN_RATE */
+        ds_put_format(string, "   Minimum Rate %d\n", 
+                      ntohs(min_rate_prop->rate));
+    }
+
+    return queue_desc->len;
+}
+
+static void
+show_queue_get_config_reply(struct ds *string, const void *oh, 
+                            size_t len, int verbosity)
+{
+    const struct ofp_queue_get_config_reply *reply;
+    const struct ofp_packet_queue *queue_desc;
+    int tot_bytes;
+    int processed;
+
+    reply = oh;
+    tot_bytes = ntohs(reply->header.length);
+
+    ds_put_format(string, " Queue cfg for port %d:\n", ntohs(reply->port));
+    processed = sizeof(struct ofp_queue_get_config_reply);
+
+    queue_desc = reply->queues;
+    while (processed < tot_bytes) {
+        ds_put_format(string, "   Queue %d (0x%x):\n", 
+                      ntohl(queue_desc->queue_id),
+                      ntohl(queue_desc->queue_id));
+        processed += show_queue_props(string, queue_desc);
+    }
+}
+
 struct openflow_packet {
     uint8_t type;
     const char *name;
@@ -1399,6 +1445,12 @@ static const struct openflow_packet packets[] = {
         sizeof (struct ofp_vendor_header),
         ofp_vendor,
     },
+    {
+        OFPT_QUEUE_GET_CONFIG_REPLY,
+        "queue_config_reply",
+        sizeof (struct ofp_queue_get_config_reply),
+        show_queue_get_config_reply,
+    }
 };
 
 /* Composes and returns a string representing the OpenFlow packet of 'len'
