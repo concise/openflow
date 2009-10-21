@@ -491,8 +491,9 @@ dump_queue_stats_transaction(const char *vconn_name, uint8_t stats_type,
     struct ofp_queue_stats_request *q_req;
     struct ofp_stats_request *stats_req;
 
-    stats_req = alloc_stats_request(sizeof(struct ofp_queue_stats_request), 
-                                    stats_type, &request);
+    alloc_stats_request(sizeof(struct ofp_queue_stats_request), 
+                        stats_type, &request);
+    stats_req = request->data;
     q_req = S_PTR(stats_req, struct ofp_stats_request, body);
 
     q_req->port_no = htons(port);
