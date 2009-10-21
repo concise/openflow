@@ -180,11 +180,13 @@ get_ipv6_address(const char *name, struct in6_addr *in6)
     fclose(file);
 }
 
+/* This is a root class. In order to efficiently share excess bandwidth
+ * tc requires that all classes are under a common root class */
+#define TC_ROOT_CLASS 0xffff
 /* This is the queue_id for packets that do not match in any other queue.
- * It has min_rate = 0. This is not a placeholder for best-effort traffic
- * if there is a need of at least X Mbps bandwidth for it. You need to configure
- * a queue if this is the case */
-#define TC_DEFAULT_CLASS 0xffff
+ * It has min_rate = 0. This is a placeholder for best-effort traffic
+ * without any bandwidth guarantees */
+#define TC_DEFAULT_CLASS 0xfffe
 /* ceil defaults to the same value as min_rate if not configured.
  * make sure that there is no ceil by explicitly defning the max-rate
  * to 1Gbps */
@@ -193,8 +195,9 @@ get_ipv6_address(const char *name, struct in6_addr *in6)
 /* This configures an HTB qdisc under the defined device. */
 #define COMMAND_ADD_DEV_QDISC "/sbin/tc qdisc add dev %s root handle 1: htb default %x"
 #define COMMAND_DEL_DEV_QDISC "/sbin/tc qdisc del dev %s root"
-#define COMMAND_ADD_CLASS "/sbin/tc class add dev %s parent 1: classid 1:%x htb rate %dkbit ceil %dkbit"
-#define COMMAND_CHANGE_CLASS "/sbin/tc class change dev %s parent 1: classid 1:%x htb rate %dkbit ceil %dkbit"
+#define COMMAND_ADD_ROOT_CLASS "/sbin/tc class add dev %s parent 1: classid 1:%x htb rate %dkbit ceil %dkbit"
+#define COMMAND_ADD_CLASS "/sbin/tc class add dev %s parent 1:ffff classid 1:%x htb rate %dkbit ceil %dkbit"
+#define COMMAND_CHANGE_CLASS "/sbin/tc class change dev %s parent 1:ffff classid 1:%x htb rate %dkbit ceil %dkbit"
 
 /** Setup a classful queue for the specific device. Configured according to HTB protocol.
  * Note that this is linux specific. You will need to replace this with the appropriate
@@ -234,6 +237,30 @@ do_remove_qdisc(const char *netdev_name)
 	 * any error */
 	return 0;
 }
+
+int
+netdev_setup_root_class(const struct netdev *netdev, uint16_t class_id, uint16_t rate)
+{
+	char command[1024];
+	char * netdev_name;
+	int actual_rate;
+
+	netdev_name = netdev->name;
+
+	/* we need to translate from .1% to kbps */
+	/* TODO : why netdev->speed doesn't report correct value? */
+	//	actual_rate = (rate*netdev->speed)/1000;
+	actual_rate = (rate*TC_MAX_RATE)/1000;
+
+	snprintf(command, sizeof(command), COMMAND_ADD_ROOT_CLASS, netdev->name, class_id, actual_rate, TC_MAX_RATE);
+	if(system(command) != 0) {
+		VLOG_ERR("Problem configuring root class %d for device %s",class_id, netdev_name);
+		return -1;
+	}
+
+	return 0;
+}
+
 
 /** Defines a class for the specific queue discipline. A class
  * represents an OpenFlow queue.
@@ -330,10 +357,15 @@ netdev_setup_slicing(const struct netdev *netdev)
 
 	/* This define a root class for the queue disc. In order to allow spare bandwidth to be used
 	 * efficiently, we need all the classes under a root class. For details, refer to :
-	 * http://luxik.cdi.cz/~devik/qos/htb/ 
-	 * tc doesn't requires a min-rate to configure a class. 
-	 * We put the max-rate. All the subclasses, will share this bandwidth */
-	error = netdev_setup_class(netdev,TC_DEFAULT_CLASS,1000);
+	 * http://luxik.cdi.cz/~devik/qos/htb/ */
+	error = netdev_setup_root_class(netdev, TC_ROOT_CLASS,1000);
+	if (error) {
+		return error;
+	}
+	/* we configure a default class. This would be the best-effort, getting
+	 * everything that remains from the other queues.tc requires a min-rate 
+	 * to configure a class, we put a min_rate here */
+	error = netdev_setup_class(netdev,TC_DEFAULT_CLASS,1);
 	if (error) {
 		return error;
 	}
