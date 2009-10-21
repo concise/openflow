@@ -668,7 +668,8 @@ static void
 fill_queue_desc(struct sw_queue *q, struct ofp_packet_queue *desc)
 {
 	desc->queue_id = htonl(q->queue_id);
-	desc->len = 8;
+	desc->len = htons(8);
+    /* FIXME:  Add properties here */
 }
 
 
