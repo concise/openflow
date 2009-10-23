@@ -602,7 +602,7 @@ parse_options(int argc, char *argv[], struct settings *s)
         OPT_COMMAND_DIR,
         OPT_NETFLOW,
         OPT_EMERG_FLOW,
-	OPT_NO_NEIGHBOR_DISCOVERY,
+	OPT_NEIGHBOR_DISCOVERY,
         VLOG_OPTION_ENUMS,
         LEAK_CHECKER_OPTION_ENUMS
     };
@@ -625,7 +625,7 @@ parse_options(int argc, char *argv[], struct settings *s)
         {"command-dir", required_argument, 0, OPT_COMMAND_DIR},
         {"netflow",     required_argument, 0, OPT_NETFLOW},
         {"emerg-flow",  no_argument, 0, OPT_EMERG_FLOW},
-        {"no-neighbor-discovery",  no_argument, 0, OPT_NO_NEIGHBOR_DISCOVERY},
+        {"neighbor-discovery",  no_argument, 0, OPT_NEIGHBOR_DISCOVERY},
         {"verbose",     optional_argument, 0, 'v'},
         {"help",        no_argument, 0, 'h'},
         {"version",     no_argument, 0, 'V'},
@@ -658,7 +658,7 @@ parse_options(int argc, char *argv[], struct settings *s)
     s->command_dir = xasprintf("%s/commands", ofp_pkgdatadir);
     s->netflow_dst = NULL;
     s->emerg_flow = false;
-    s->neighbordiscovery = true;
+    s->neighbordiscovery = false;
     for (;;) {
         int c;
 
@@ -766,8 +766,8 @@ parse_options(int argc, char *argv[], struct settings *s)
             s->netflow_dst = optarg;
             break;
 
-	case OPT_NO_NEIGHBOR_DISCOVERY:
-	    s->neighbordiscovery=false;
+	case OPT_NEIGHBOR_DISCOVERY:
+	    s->neighbordiscovery=true;
 	    break;
 
         case OPT_EMERG_FLOW:
@@ -912,7 +912,7 @@ usage(void)
            "  --no-stp                disable 802.1D Spanning Tree Protocol\n"
            "  --netflow=HOST:PORT     send NetFlow v5 messages when flows end\n"
            "  --emerg-flow            enable emergency flow protection/restoration\n"
-           "  --no-neighbor-discovery disable neighbor discovery in switch\n"
+           "  --neighbor-discovery    enable neighbor discovery in switch\n"
            "\nRate-limiting of \"packet-in\" messages to the controller:\n"
            "  --rate-limit[=PACKETS]  max rate, in packets/s (default: 1000)\n"
            "  --burst-limit=BURST     limit on packet credit for idle time\n"
