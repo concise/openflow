@@ -57,6 +57,7 @@ enum fail_mode {
 struct settings {
     /* Overall mode of operation. */
     bool discovery;           /* Discover the controller automatically? */
+    bool neighbordiscovery;   /* Discover the neighbors automatically? */
     bool in_band;             /* Connect to controller in-band? */
 
     /* Related vconns and network devices. */
