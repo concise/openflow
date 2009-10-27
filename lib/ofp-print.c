@@ -1078,6 +1078,34 @@ ofp_port_stats_reply(struct ds *string, const void *body, size_t len,
 }
 
 static void
+ofp_queue_stats_reply(struct ds *string, const void *body, size_t len,
+                     int verbosity)
+{
+    const struct ofp_queue_stats *qs = body;
+    size_t n = len / sizeof *qs;
+    int prev_port = -1;
+
+    ds_put_format(string, " %zu queues\n", n);
+    if (verbosity < 1) {
+        return;
+    }
+
+    for (; n--; qs++) {
+        if (prev_port != ntohs(qs->port_no)) {
+            ds_put_format(string, "  Port %2"PRIu16": ", ntohs(qs->port_no));
+        } else {
+            ds_put_format(string, "           ");
+        }
+        prev_port = ntohs(qs->port_no);
+        ds_put_format(string, "  Queue %2"PRIu32": ", ntohl(qs->queue_id));
+
+        print_port_stat(string, "bytes=", ntohll(qs->tx_bytes), 1);
+        print_port_stat(string, "pkts=", ntohll(qs->tx_packets), 1);
+        print_port_stat(string, "errors=", ntohll(qs->tx_errors), 0);
+    }
+}
+
+static void
 ofp_table_stats_reply(struct ds *string, const void *body, size_t len,
                      int verbosity)
 {
@@ -1171,6 +1199,12 @@ print_stats(struct ds *string, int type, const void *body, size_t body_len,
             "port",
             { 0, 0, NULL, },
             { 0, SIZE_MAX, ofp_port_stats_reply },
+        },
+        {
+            OFPST_QUEUE,
+            "queue",
+            { 0, 0, NULL, },
+            { 0, SIZE_MAX, ofp_queue_stats_reply}
         },
         {
             OFPST_VENDOR,
