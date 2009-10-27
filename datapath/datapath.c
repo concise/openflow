@@ -1615,14 +1615,15 @@ static int port_stats_init(struct datapath *dp, const void *body, int body_len,
 			   void **state)
 {
 	struct port_stats_state *s = kmalloc(sizeof *s, GFP_ATOMIC);
+	struct ofp_port_stats_request *psr
+		= (struct ofp_port_stats_request *)body;
+
 	if (!s)
 		return -ENOMEM;
-	if (body_len == 0) {
+	if (ntohs(psr->port_no) == OFPP_NONE) {
 		s->port = 1;
 		s->req_port = OFPP_NONE;
 	} else {
-		struct ofp_port_stats_request *psr
-			= (struct ofp_port_stats_request *)body;
 		s->port = 1;
 		s->req_port = ntohs(psr->port_no);
 	}
@@ -1830,7 +1831,7 @@ static const struct stats_type stats[] = {
 		NULL
 	},
 	[OFPST_PORT] = {
-		0,
+		sizeof(struct ofp_port_stats_request),
 		sizeof(struct ofp_port_stats_request),
 		port_stats_init,
 		port_stats_dump,

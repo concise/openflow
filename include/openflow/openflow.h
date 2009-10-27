@@ -674,7 +674,7 @@ enum ofp_stats_types {
     OFPST_TABLE,
 
     /* Physical port statistics.
-     * The request body is empty or struct ofp_port_stats_request.
+     * The request body is struct ofp_port_stats_request.
      * The reply body is an array of struct ofp_port_stats. */
     OFPST_PORT,
 
