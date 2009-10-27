@@ -1444,7 +1444,6 @@ queue_stats_init(const void *body, int body_len UNUSED, void **state)
 	struct queue_stats_state *s = xmalloc(sizeof *s);
 	s->port = ntohs(qsr->port_no);
 	s->queue_id = ntohl(qsr->queue_id);
-	VLOG_ERR("request queue stats for %d:%d",s->port, s->queue_id);
 	*state = s;
 	return 0;
 }
@@ -1776,19 +1775,14 @@ recv_queue_get_config_request(struct datapath *dp, const struct sender *sender,
 	ofq_request = (struct ofp_queue_get_config_request *)oh;
 	port_no = ntohs(ofq_request->port);
 
-
-	VLOG_ERR("Received Queue get Config request for port %d",port_no);
-
 	/* Find port under query */
 	LIST_FOR_EACH(p, struct sw_port, node, &dp->port_list) {
 		if(p->port_no == port_no) {
-			VLOG_ERR("Port found!");
 			break;
 		}
 	}
 	/* if the port under query doesn't exist, send an error */
 	if (!p ||  (p->port_no != port_no)) {
-		VLOG_ERR("port %d doesn't exist - sending error message",port_no);
 		// TODO define appropriate error message
 		dp_send_error_msg(dp, sender, OFPET_BAD_ACTION, OFPBAC_BAD_OUT_PORT,
 						  oh, ntohs(ofq_request->header.length));
@@ -1802,7 +1796,6 @@ recv_queue_get_config_request(struct datapath *dp, const struct sender *sender,
 			struct ofp_packet_queue * opq = ofpbuf_put_uninit(buffer, sizeof *opq);
 			memset(opq,0,sizeof *opq);
 			fill_queue_desc(q,opq);
-			VLOG_ERR("Found q %d with rate %d at port %d",q->queue_id, q->min_rate,port_no);
 		}
 		send_openflow_buffer(dp, buffer, sender);
 	}
