@@ -174,7 +174,8 @@ enum ofp_capabilities {
     OFPC_STP            = 1 << 3,  /* 802.1d spanning tree. */
     OFPC_MULTI_PHY_TX   = 1 << 4,  /* Supports transmitting through multiple
                                       physical interfaces */
-    OFPC_IP_REASM       = 1 << 5   /* Can reassemble IP fragments. */
+    OFPC_IP_REASM       = 1 << 5,  /* Can reassemble IP fragments. */
+	OFPC_QUEUE_STATS    = 1 << 6   /* Queue statistics */
 };
 
 /* Flags to indicate behavior of the physical port.  These flags are
@@ -908,7 +909,7 @@ struct ofp_queue_stats {
     uint32_t queue_id;       /* queue id */
     uint64_t tx_bytes;       /* Number of transmitted bytes. */
     uint64_t tx_packets;     /* Number of transmitted packets. */
-    uint64_t tx_error;       /* Number of packets dropped due to overrun. */
+    uint64_t tx_errors;      /* Number of packets dropped due to overrun. */
 };
 OFP_ASSERT(sizeof(struct ofp_queue_stats) == 32);
 

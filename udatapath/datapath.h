@@ -53,6 +53,7 @@ struct sw_queue {
 	struct list node; /* element in port.queues */
 	unsigned long long int tx_packets;
 	unsigned long long int tx_bytes;
+	unsigned long long int tx_errors;
 	uint32_t queue_id;
 	uint16_t class_id; /* internal mapping from OF queue_id to tc class_id */
 	struct sw_port *port; /* reference to the parent port */

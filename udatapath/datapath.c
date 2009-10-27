@@ -70,7 +70,8 @@ extern char serial_num;
 /* Capabilities supported by this implementation. */
 #define OFP_SUPPORTED_CAPABILITIES ( OFPC_FLOW_STATS \
         | OFPC_TABLE_STATS \
-        | OFPC_PORT_STATS \
+  	    | OFPC_PORT_STATS \ 
+		| OFPC_QUEUE_STATS \									 
         | OFPC_MULTI_PHY_TX )
 
 /* Actions supported by this implementation. */
@@ -83,7 +84,8 @@ extern char serial_num;
                                 | (1 << OFPAT_SET_NW_SRC)   \
                                 | (1 << OFPAT_SET_NW_DST)   \
                                 | (1 << OFPAT_SET_TP_SRC)   \
-                                | (1 << OFPAT_SET_TP_DST) )
+                                | (1 << OFPAT_SET_TP_DST)   \
+								| (1 << OFPAT_ENQUEUE))
 
 /* The origin of a received OpenFlow message, to enable sending a reply. */
 struct sender {
@@ -145,6 +147,19 @@ lookup_port(struct datapath *dp, uint16_t port_no)
     return (port_no < DP_MAX_PORTS ? &dp->ports[port_no]
             : port_no == OFPP_LOCAL ? dp->local_port
             : NULL);
+}
+
+static struct sw_queue *
+lookup_queue(struct sw_port *p, uint32_t queue_id)
+{
+	struct sw_queue *q;
+
+	LIST_FOR_EACH(q, struct sw_queue, node, &p->queue_list) {
+		if(q->queue_id == queue_id) {
+			return q;
+		}
+	}
+	return NULL;
 }
 
 /* Generates and returns a random datapath id. */
@@ -1362,6 +1377,11 @@ struct port_stats_state {
     int port;
 };
 
+struct queue_stats_state {
+	uint16_t port;
+	uint32_t queue_id;
+};
+
 static int
 port_stats_init(const void *body UNUSED, int body_len UNUSED, void **state)
 {
@@ -1415,6 +1435,58 @@ static int port_stats_dump(struct datapath *dp, void *state,
 static void port_stats_done(void *state)
 {
     free(state);
+}
+
+static int
+queue_stats_init(const void *body, int body_len UNUSED, void **state)
+{
+	const struct ofp_queue_stats_request *qsr = body;
+	struct queue_stats_state *s = xmalloc(sizeof *s);
+	s->port = ntohs(qsr->port_no);
+	s->queue_id = ntohl(qsr->queue_id);
+	VLOG_ERR("request queue stats for %d:%d",s->port, s->queue_id);
+	*state = s;
+	return 0;
+}
+
+static void
+dump_queue_stats(struct sw_queue *q, struct ofpbuf *buffer)
+{
+	struct ofp_queue_stats *oqs = ofpbuf_put_uninit(buffer, sizeof *oqs);
+	oqs->port_no = htons(q->port->port_no);
+	oqs->queue_id = htonl(q->queue_id);
+	oqs->tx_bytes = htonll(q->tx_bytes);
+	oqs->tx_packets = htonll(q->tx_packets);
+	oqs->tx_errors = htonll(q->tx_errors);
+}
+
+static int
+queue_stats_dump(struct datapath *dp, void *state, 
+				 struct ofpbuf *buffer)
+{
+	struct queue_stats_state *s = state;
+	struct sw_queue *q;
+	struct sw_port *p = lookup_port(dp, s->port);
+	if(p) {
+		if (s->queue_id == OFPQ_NONE) {
+			LIST_FOR_EACH(q, struct sw_queue, node, &p->queue_list) {
+				dump_queue_stats(q,buffer);
+			}
+		}
+		else {
+			q = lookup_queue(p, s->queue_id);
+			if (q) {
+				dump_queue_stats(q, buffer);
+			}
+		}
+	}
+	return 0;
+}
+
+static void
+queue_stats_done(void *state)
+{
+	free(state);
 }
 
 /*
@@ -1543,6 +1615,14 @@ static const struct stats_type stats[] = {
         port_stats_dump,
         port_stats_done
     },
+	{
+		OFPST_QUEUE,
+		sizeof(struct ofp_queue_stats_request),
+		sizeof(struct ofp_queue_stats_request),
+		queue_stats_init,
+		queue_stats_dump,
+		queue_stats_done
+	},
     {
         OFPST_VENDOR,
         8,             /* vendor + subtype */
