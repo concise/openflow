@@ -85,9 +85,12 @@ static const value_string names_ofp_type[] = {
     { OFPT_BARRIER_REQUEST,     "Barrier Request (CSM)" },
     { OFPT_BARRIER_REPLY,       "Barrier Reply (CSM)" },
 
+    /* Neighbor message. */
+    { OFPT_NEIGHBOR_MSG,        "Neighbor Message (AM)" },
+
     { 0,                        NULL }
 };
-#define OFP_TYPE_MAX_VALUE OFPT_BARRIER_REPLY
+#define OFP_TYPE_MAX_VALUE OFPT_NEIGHBOR_MSG
 
 /** names from ofp_action_type */
 static const value_string names_ofp_action_type[] = {
@@ -184,6 +187,13 @@ static const value_string names_ip_frag[] = {
     { OFPC_FRAG_NORMAL, "No special handling for fragments." },
     { OFPC_FRAG_DROP,   "Drop fragments." },
     { OFPC_FRAG_REASM,  "Reassemble (only if OFPC_IP_REASM set)" },
+    { 0,                NULL }
+};
+
+/** names from ofp_neighbor_activity */
+static const value_string names_neighbor_act[] = {
+    { OFPNA_NEIGHBOR_DISCOVERED,   "New neighbor discovered." },
+    { OFPNA_NEIGHBOR_EXPIRED,      "Neighbor lost."},
     { 0,                NULL }
 };
 
@@ -573,6 +583,13 @@ static gint ofp_flow_removed_byte_count   = -1;
 
 static gint ofp_port_status        = -1;
 static gint ofp_port_status_reason = -1;
+
+static gint ofp_neighbor_msg                        = -1;
+static gint ofp_neighbor_msg_activity               = -1;
+static gint ofp_neighbor_msg_in_port                = -1;
+static gint ofp_neighbor_msg_neighbor_datapath_id   = -1;
+static gint ofp_neighbor_msg_neighbor_port          = -1;
+
 /* field: ofp_phy_port desc */
 
 static gint ofp_error_msg          = -1;
@@ -640,6 +657,7 @@ static gint ett_ofp_flow_removed = -1;
 static gint ett_ofp_port_status = -1;
 static gint ett_ofp_error_msg = -1;
 static gint ett_ofp_error_msg_data = -1;
+static gint ett_ofp_neighbor_msg = -1;
 
 void proto_reg_handoff_openflow()
 {
@@ -1264,6 +1282,21 @@ void proto_register_openflow()
         { &ofp_packet_out_data_hdr,
           { "Frame Data", "of.pktout_data", FT_BYTES, BASE_NONE, NO_STRINGS, NO_MASK, "Frame Data", HFILL }},
 
+	/* AM: Neighbor Msg */
+        { &ofp_neighbor_msg,
+          { "Neighbor Message", "of.nm", FT_NONE, BASE_NONE, NO_STRINGS, NO_MASK, "Neighbor Message", HFILL } },
+
+        { &ofp_neighbor_msg_activity,
+          { "Command", "of.nm_activity", FT_UINT8, BASE_DEC, VALS(names_neighbor_act), NO_MASK, "Command", HFILL } },
+
+        { &ofp_neighbor_msg_in_port,
+          { "In Port", "of.nm_in_port", FT_UINT16, BASE_DEC, NO_STRINGS, NO_MASK, "Port Neighbor is Discovered", HFILL }},
+
+        { &ofp_neighbor_msg_neighbor_datapath_id,
+          { "Neighbor Datapath ID", "of.nm_neighbor_datapath_id", FT_UINT64, BASE_HEX, NO_STRINGS, NO_MASK, "Datapath ID of Neighbor", HFILL }},
+
+        { &ofp_neighbor_msg_neighbor_port,
+          { "Neighbor Port", "of.nm_neighbor_port", FT_UINT16, BASE_DEC, NO_STRINGS, NO_MASK, "Port of Neighbor Discovered", HFILL }},
 
         /* CSM: Flow Mod */
         { &ofp_flow_mod,
@@ -1669,6 +1702,7 @@ void proto_register_openflow()
         &ett_ofp_port_status,
         &ett_ofp_error_msg,
         &ett_ofp_error_msg_data,
+	&ett_ofp_neighbor_msg,
     };
 
     proto_openflow = proto_register_protocol( "OpenFlow Protocol",
@@ -2520,7 +2554,7 @@ static void dissect_openflow_message(tvbuff_t *tvb, packet_info *pinfo, proto_tr
             break;
         }
         	 	
-        case OFPT_VENDOR: {
+       case OFPT_VENDOR: {
             add_child(tree, ofp_vendor, tvb, &offset, len - offset);
             break;        	
         }
@@ -2528,6 +2562,19 @@ static void dissect_openflow_message(tvbuff_t *tvb, packet_info *pinfo, proto_tr
         case OFPT_FEATURES_REQUEST:
             /* nothing else in this packet type */
             break;
+
+        case OFPT_NEIGHBOR_MSG: {
+            type_item = proto_tree_add_item(ofp_tree, ofp_neighbor_msg, tvb, offset, -1, FALSE);
+	    type_tree = proto_item_add_subtree(type_item, ett_ofp_neighbor_msg);
+            add_child(type_tree, ofp_neighbor_msg_activity, tvb, &offset, 1);
+	    dissect_pad(type_tree, &offset, 1);
+            add_child(type_tree, ofp_neighbor_msg_in_port, tvb, &offset, 2);
+            add_child(type_tree, ofp_neighbor_msg_neighbor_datapath_id, tvb, &offset, 8);
+            add_child(type_tree, ofp_neighbor_msg_neighbor_port, tvb, &offset, 2);
+	    dissect_pad(type_tree, &offset, 2);
+            break;        	
+        }
+
 
         case OFPT_FEATURES_REPLY: {
 
