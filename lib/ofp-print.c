@@ -1313,18 +1313,20 @@ static int
 show_queue_props(struct ds *string, const struct ofp_packet_queue *queue_desc)
 {
     struct ofp_queue_prop_min_rate *min_rate_prop;
+    int ent_len;
 
-    if (ntohs(queue_desc->len) > sizeof(struct ofp_packet_queue)) {
+    ent_len = ntohs(queue_desc->len);
+    if (ent_len > sizeof(struct ofp_packet_queue)) {
         /* Should switch on type of property and accumulate length fields */
         min_rate_prop = 
             (struct ofp_queue_prop_min_rate *)(queue_desc->properties);
         /* Assert: len == 16 */
         /* Assert: property == OFPQT_MIN_RATE */
-        ds_put_format(string, "   Minimum Rate %d\n", 
+        ds_put_format(string, " Minimum Rate %d\n", 
                       ntohs(min_rate_prop->rate));
     }
 
-    return queue_desc->len;
+    return ent_len;
 }
 
 static void
@@ -1335,19 +1337,26 @@ show_queue_get_config_reply(struct ds *string, const void *oh,
     const struct ofp_packet_queue *queue_desc;
     int tot_bytes;
     int processed;
+    int tot_processed;
 
     reply = oh;
     tot_bytes = ntohs(reply->header.length);
 
     ds_put_format(string, " Queue cfg for port %d:\n", ntohs(reply->port));
-    processed = sizeof(struct ofp_queue_get_config_reply);
+    tot_processed = sizeof(struct ofp_queue_get_config_reply);
 
     queue_desc = reply->queues;
-    while (processed < tot_bytes) {
-        ds_put_format(string, "   Queue %d (0x%x):\n", 
+    if (tot_processed >= tot_bytes) {
+        ds_put_format(string, "   No queues reported\n");
+    }
+    while (tot_processed < tot_bytes) {
+        ds_put_format(string, "   Queue %d (0x%x):", 
                       ntohl(queue_desc->queue_id),
                       ntohl(queue_desc->queue_id));
-        processed += show_queue_props(string, queue_desc);
+        processed = show_queue_props(string, queue_desc);
+        queue_desc = (struct ofp_packet_queue *)
+            ((char *)queue_desc + processed);
+        tot_processed += processed;
     }
 }
 

@@ -680,11 +680,24 @@ dp_output_control(struct datapath *dp, struct ofpbuf *buffer, int in_port,
 }
 
 static void
-fill_queue_desc(struct sw_queue *q, struct ofp_packet_queue *desc)
+fill_queue_desc(struct ofpbuf *buffer, struct sw_queue *q, 
+                struct ofp_packet_queue *desc)
 {
+    struct ofp_queue_prop_min_rate *mr;
+    int len;
+
+    len = sizeof(struct ofp_packet_queue) + 
+        sizeof(struct ofp_queue_prop_min_rate);
 	desc->queue_id = htonl(q->queue_id);
-	desc->len = htons(8);
-    /* FIXME:  Add properties here */
+	desc->len = htons(len);
+
+    /* Property list */
+    mr = ofpbuf_put_zeros(buffer, sizeof *mr);
+    mr->prop_header.property = htons(OFPQT_MIN_RATE);
+    len = sizeof(struct ofp_queue_prop_min_rate);
+    mr->prop_header.len = htons(len);
+    /* FIXME:  Should verify the property is actually configured */
+    mr->rate = htons(q->min_rate);
 }
 
 
@@ -1793,9 +1806,8 @@ recv_queue_get_config_request(struct datapath *dp, const struct sender *sender,
 										sender, &buffer);
 		ofq_reply->port = htons(port_no);
 		LIST_FOR_EACH(q, struct sw_queue, node, &p->queue_list) {
-			struct ofp_packet_queue * opq = ofpbuf_put_uninit(buffer, sizeof *opq);
-			memset(opq,0,sizeof *opq);
-			fill_queue_desc(q,opq);
+			struct ofp_packet_queue * opq = ofpbuf_put_zeros(buffer, sizeof *opq);
+			fill_queue_desc(buffer, q, opq);
 		}
 		send_openflow_buffer(dp, buffer, sender);
 	}
