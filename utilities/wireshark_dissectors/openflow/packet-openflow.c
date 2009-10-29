@@ -586,7 +586,7 @@ static gint ofp_port_status_reason = -1;
 
 static gint ofp_neighbor_msg                        = -1;
 static gint ofp_neighbor_msg_activity               = -1;
-static gint ofp_neighbor_msg_in_port                = -1;
+static gint ofp_neighbor_msg_local_port             = -1;
 static gint ofp_neighbor_msg_neighbor_datapath_id   = -1;
 static gint ofp_neighbor_msg_neighbor_port          = -1;
 
@@ -1289,8 +1289,8 @@ void proto_register_openflow()
         { &ofp_neighbor_msg_activity,
           { "Command", "of.nm_activity", FT_UINT8, BASE_DEC, VALS(names_neighbor_act), NO_MASK, "Command", HFILL } },
 
-        { &ofp_neighbor_msg_in_port,
-          { "In Port", "of.nm_in_port", FT_UINT16, BASE_DEC, NO_STRINGS, NO_MASK, "Port Neighbor is Discovered", HFILL }},
+        { &ofp_neighbor_msg_local_port,
+          { "Local Port", "of.nm_local_port", FT_UINT16, BASE_DEC, NO_STRINGS, NO_MASK, "Local port on which neighbor is discovered", HFILL }},
 
         { &ofp_neighbor_msg_neighbor_datapath_id,
           { "Neighbor Datapath ID", "of.nm_neighbor_datapath_id", FT_UINT64, BASE_HEX, NO_STRINGS, NO_MASK, "Datapath ID of Neighbor", HFILL }},
@@ -2568,7 +2568,7 @@ static void dissect_openflow_message(tvbuff_t *tvb, packet_info *pinfo, proto_tr
 	    type_tree = proto_item_add_subtree(type_item, ett_ofp_neighbor_msg);
             add_child(type_tree, ofp_neighbor_msg_activity, tvb, &offset, 1);
 	    dissect_pad(type_tree, &offset, 1);
-            add_child(type_tree, ofp_neighbor_msg_in_port, tvb, &offset, 2);
+            add_child(type_tree, ofp_neighbor_msg_local_port, tvb, &offset, 2);
             add_child(type_tree, ofp_neighbor_msg_neighbor_datapath_id, tvb, &offset, 8);
             add_child(type_tree, ofp_neighbor_msg_neighbor_port, tvb, &offset, 2);
 	    dissect_pad(type_tree, &offset, 2);

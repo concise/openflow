@@ -51,7 +51,7 @@ static void neighbordiscovery_periodic_cb(void *nd_)
     {
       //Send neighbor message
       nd->neighbormsg.activity = OFPNA_NEIGHBOR_EXPIRED;
-      nd->neighbormsg.in_port = htons(nd->neighbors[i].in_port);
+      nd->neighbormsg.local_port = htons(nd->neighbors[i].in_port);
       nd->neighbormsg.neighbor_datapath_id = htonll(nd->neighbors[i].neighbor_dpid);
       nd->neighbormsg.neighbor_port = htons(nd->neighbors[i].neighbor_port);
       msg = ofpbuf_new(sizeof(nd->neighbormsg));
@@ -233,7 +233,7 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
       if (rconn_is_connected(nd->remote_rconn))
       {
 	nd->neighbormsg.activity = OFPNA_NEIGHBOR_DISCOVERED;
-	nd->neighbormsg.in_port = htons(portno);
+	nd->neighbormsg.local_port = htons(portno);
 	nd->neighbormsg.neighbor_datapath_id = htonll(dpid);
 	nd->neighbormsg.neighbor_port = htons(neighborport);
 
