@@ -311,6 +311,8 @@ void neighbordiscovery_start(struct secchan *secchan,
   nd->neighbormsg.header.type = OFPT_NEIGHBOR_MSG;
   nd->neighbormsg.header.length = htons(sizeof(struct ofp_neighbor_msg));
   nd->neighbormsg.header.xid = htons(0);
+  for (i = 0; i < 3; i++)
+    nd->neighbormsg.pad[0] = 0;
 
   //Prepack probe packet
   nd->probe.pktout.header.version = OFP_VERSION;
