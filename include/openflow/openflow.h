@@ -335,11 +335,10 @@ enum ofp_neighbor_activity {
 struct ofp_neighbor_msg {
     struct ofp_header header;
     uint8_t activity;               /* One of ofp_neighbor_activity */
-    uint8_t pad;                    /* Pad */
+    uint8_t pad[3];                 /* Pad */
     uint16_t local_port;            /* Local port on which neighbor is/was connected */
-    uint64_t neighbor_datapath_id;  /* Datapath id of neighbor */
     uint16_t neighbor_port;         /* Port on neighbor connected to this switch */
-    uint8_t  pad2[2];               /* Pad */
+    uint64_t neighbor_datapath_id;  /* Datapath id of neighbor */
 };
 OFP_ASSERT(sizeof(struct ofp_neighbor_msg) == 24);
 
