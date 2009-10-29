@@ -46,12 +46,12 @@ static void neighbordiscovery_periodic_cb(void *nd_)
 
   //Check for expired neighbor
   for (i = 0; i < NEIGHBOR_MAX_NO; i++)
-    if ((nd->neighbors[i].in_port != OFPP_NONE) &&
+    if ((nd->neighbors[i].local_port != OFPP_NONE) &&
 	(timercmp(&now, &nd->neighbors[i].expiryTime, >=)))
     {
       //Send neighbor message
       nd->neighbormsg.activity = OFPNA_NEIGHBOR_EXPIRED;
-      nd->neighbormsg.local_port = htons(nd->neighbors[i].in_port);
+      nd->neighbormsg.local_port = htons(nd->neighbors[i].local_port);
       nd->neighbormsg.neighbor_datapath_id = htonll(nd->neighbors[i].neighbor_dpid);
       nd->neighbormsg.neighbor_port = htons(nd->neighbors[i].neighbor_port);
       msg = ofpbuf_new(sizeof(nd->neighbormsg));
@@ -61,14 +61,14 @@ static void neighbordiscovery_periodic_cb(void *nd_)
 		"at port %u",
 		nd->neighbors[i].neighbor_dpid,
 		nd->neighbors[i].neighbor_port,
-		nd->neighbors[i].in_port);
+		nd->neighbors[i].local_port);
       
       //Remove neighbor from record
-      if (nd->port[nd->neighbors[i].in_port].neighbor_no == 0)
+      if (nd->port[nd->neighbors[i].local_port].neighbor_no == 0)
 	VLOG_WARN("Removing neighbor when there is none!");
       else
-	nd->port[nd->neighbors[i].in_port].neighbor_no--;
-      nd->neighbors[i].in_port = OFPP_NONE;
+	nd->port[nd->neighbors[i].local_port].neighbor_no--;
+      nd->neighbors[i].local_port = OFPP_NONE;
       nd->neighbors[i].expiryTime = now;
       VLOG_DBG("Neighbor at index %i deleted", i);
     }
@@ -202,7 +202,7 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
 
       //Update neighbor if registered
       for (i = 0; i < NEIGHBOR_MAX_NO; i++)
-	if ((nd->neighbors[i].in_port == portno) &&
+	if ((nd->neighbors[i].local_port == portno) &&
 	    (nd->neighbors[i].neighbor_dpid == dpid) &&
 	    (nd->neighbors[i].neighbor_port == neighborport))
 	{
@@ -214,14 +214,14 @@ static bool neighbordiscovery_local_packet_cb(struct relay *r, void *nd_)
 
       //New neighbor
       i = 0;
-      while (nd->neighbors[i].in_port != OFPP_NONE)
+      while (nd->neighbors[i].local_port != OFPP_NONE)
 	i++;
       if (i >= NEIGHBOR_MAX_NO)
       {
 	VLOG_WARN("Cannot track more than %u neighbors", NEIGHBOR_MAX_NO);
 	return true;
       }
-      nd->neighbors[i].in_port = portno;
+      nd->neighbors[i].local_port = portno;
       nd->neighbors[i].neighbor_dpid = dpid;
       nd->neighbors[i].neighbor_port = neighborport;
       nd->neighbors[i].expiryTime = now;
@@ -342,7 +342,7 @@ void neighbordiscovery_start(struct secchan *secchan,
   
   //Denote empty port with expiry time of 0
   for (i = 0; i < NEIGHBOR_MAX_NO; i++)
-    nd->neighbors[i].in_port = OFPP_NONE;
+    nd->neighbors[i].local_port = OFPP_NONE;
   
   //Register hooks
   add_hook(secchan, &neighbordiscovery_hook_class, nd);
