@@ -2567,11 +2567,10 @@ static void dissect_openflow_message(tvbuff_t *tvb, packet_info *pinfo, proto_tr
             type_item = proto_tree_add_item(ofp_tree, ofp_neighbor_msg, tvb, offset, -1, FALSE);
 	    type_tree = proto_item_add_subtree(type_item, ett_ofp_neighbor_msg);
             add_child(type_tree, ofp_neighbor_msg_activity, tvb, &offset, 1);
-	    dissect_pad(type_tree, &offset, 1);
+	    dissect_pad(type_tree, &offset, 3);
             add_child(type_tree, ofp_neighbor_msg_local_port, tvb, &offset, 2);
-            add_child(type_tree, ofp_neighbor_msg_neighbor_datapath_id, tvb, &offset, 8);
             add_child(type_tree, ofp_neighbor_msg_neighbor_port, tvb, &offset, 2);
-	    dissect_pad(type_tree, &offset, 2);
+            add_child(type_tree, ofp_neighbor_msg_neighbor_datapath_id, tvb, &offset, 8);
             break;        	
         }
 
