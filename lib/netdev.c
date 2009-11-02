@@ -829,6 +829,9 @@ netdev_close(struct netdev *netdev)
         if (netdev->netdev_fd != netdev->tap_fd) {
             close(netdev->tap_fd);
         }
+		for (int i =1; i<= NETDEV_MAX_QUEUES; i++) {
+			close(netdev->queue_fd[i]);
+		}
         free(netdev);
     }
 }

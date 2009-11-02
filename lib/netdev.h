@@ -68,6 +68,8 @@ enum netdev_pseudo_ethertype {
     NETDEV_ETH_TYPE_802_2        /* Receive all IEEE 802.2 frames. */
 };
 
+#define NETDEV_MAX_QUEUES 8
+
 struct netdev;
 
 int netdev_open(const char *name, int ethertype, struct netdev **);
