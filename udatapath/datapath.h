@@ -42,13 +42,13 @@
 #include "ofpbuf.h"
 #include "timeval.h"
 #include "list.h"
+#include "netdev.h"
 
 struct rconn;
 struct pvconn;
 struct sw_flow;
 struct sender;
 
-#define DP_MAX_QUEUES 8
 struct sw_queue {
 	struct list node; /* element in port.queues */
 	unsigned long long int tx_packets;
@@ -73,7 +73,7 @@ struct sw_port {
     unsigned long long int tx_dropped;
     uint16_t port_no;
 	/* port queues */
-	struct sw_queue queues[DP_MAX_QUEUES];
+	struct sw_queue queues[NETDEV_MAX_QUEUES];
 	struct list queue_list; /* list of all queues for this port */
 };
 
@@ -116,7 +116,7 @@ void dp_send_error_msg(struct datapath *, const struct sender *,
 void dp_send_flow_end(struct datapath *, struct sw_flow *,
                       enum ofp_flow_removed_reason);
 void dp_output_port(struct datapath *, struct ofpbuf *, int in_port, 
-        int out_port, bool ignore_no_fwd);
+					int out_port, uint32_t queue_id, bool ignore_no_fwd);
 void dp_output_control(struct datapath *, struct ofpbuf *, int in_port,
         size_t max_len, int reason);
 

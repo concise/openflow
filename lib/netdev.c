@@ -198,13 +198,12 @@ get_ipv6_address(const char *name, struct in6_addr *in6)
 #define TC_MAX_RATE 1000000
 #define TC_MIN_RATE 1
 /* This configures an HTB qdisc under the defined device. */
-#define COMMAND_ADD_DEV_QDISC "/sbin/tc qdisc add dev %s root handle x: htb default %x"
+#define COMMAND_ADD_DEV_QDISC "/sbin/tc qdisc add dev %s root handle %x: htb default %x"
 #define COMMAND_DEL_DEV_QDISC "/sbin/tc qdisc del dev %s root"
-#define COMMAND_ADD_ROOT_CLASS "/sbin/tc class add dev %s parent x: classid x:%x htb rate %dkbit ceil %dkbit"
-#define COMMAND_ADD_CLASS "/sbin/tc class add dev %s parent x:x classid x:%x htb rate %dkbit ceil %dkbit"
-#define COMMAND_CHANGE_CLASS "/sbin/tc class change dev %s parent x:x classid x:%x htb rate %dkbit ceil %dkbit"
+#define COMMAND_ADD_CLASS "/sbin/tc class add dev %s parent %x:%x classid %x:%x htb rate %dkbit ceil %dkbit"
+#define COMMAND_CHANGE_CLASS "/sbin/tc class change dev %s parent %x:%x classid %x:%x htb rate %dkbit ceil %dkbit"
 
-int
+static int
 netdev_setup_root_class(const struct netdev *netdev, uint16_t class_id, uint16_t rate)
 {
 	char command[1024];
@@ -218,7 +217,7 @@ netdev_setup_root_class(const struct netdev *netdev, uint16_t class_id, uint16_t
 	//	actual_rate = (rate*netdev->speed)/1000;
 	actual_rate = (rate*TC_MAX_RATE)/1000;
 
-	snprintf(command, sizeof(command), COMMAND_ADD_ROOT_CLASS, netdev->name, TC_QDISC, TC_QDISC, class_id, actual_rate, TC_MAX_RATE);
+	snprintf(command, sizeof(command), COMMAND_ADD_CLASS, netdev->name, TC_QDISC,0,TC_QDISC, class_id, actual_rate, TC_MAX_RATE);
 	if(system(command) != 0) {
 		VLOG_ERR("Problem configuring root class %d for device %s",class_id, netdev_name);
 		return -1;
@@ -291,7 +290,7 @@ netdev_change_class(const struct netdev *netdev, uint16_t class_id, uint16_t rat
 }
 
 static int
-open_queue_socket(const char * name, class_id id, int * fd)
+open_queue_socket(const char * name, uint16_t class_id, int * fd)
 {
 	int error;
 	struct ifreq ifr;
@@ -326,13 +325,10 @@ open_queue_socket(const char * name, class_id id, int * fd)
 		goto error;
 	}
 	
-	/* set the specific priority  the first fd is the default, best-effor queue.
-	 * no need to set the priority for it. */
-	uint32_t priority;
 	/* set the priority so that packets from this socket will go to the respective 
 	 * class_id/queue. Note that to refer to a tc class we use the following concatenation
 	 * qdisc:handle on an unsigned integer. */
-	priority = (1<<16) + i;
+	priority = (TC_QDISC<<16) + class_id;
 	if( set_socket_priority(*fd,priority) < 0) {
 		VLOG_ERR("set socket priority failed for %s : %s",name,strerror(errno));
 		goto error;
@@ -375,22 +371,6 @@ do_setup_qdisc(const char *netdev_name)
 		VLOG_WARN("Problem configuring qdisc for device %s",netdev_name);
 		return error;
 	}
-
-	/* This define a root class for the queue disc. In order to allow spare bandwidth to be used
-	 * efficiently, we need all the classes under a root class. For details, refer to :
-	 * http://luxik.cdi.cz/~devik/qos/htb/ */
-	error = netdev_setup_root_class(netdev, TC_ROOT_CLASS,1000);
-	if (error) {
-		return error;
-	}
-	/* we configure a default class. This would be the best-effort, getting
-	 * everything that remains from the other queues.tc requires a min-rate 
-	 * to configure a class, we put a min_rate here */
-	error = netdev_setup_class(netdev,TC_DEFAULT_CLASS,1);
-	if (error) {
-		return error;
-	}
-
 	return 0;
 }
 
@@ -417,7 +397,7 @@ do_remove_qdisc(const char *netdev_name)
  * @return 0 on success
  */
 int
-netdev_setup_slicing(const struct netdev *netdev)
+netdev_setup_slicing(struct netdev *netdev)
 {
 	int i;
 	int * fd;
@@ -470,10 +450,10 @@ netdev_setup_slicing(const struct netdev *netdev)
 
 	/* the first socket is the default. non-sense, but makes life easier when start enumerating
 	 * from one. */
-	netdev->queue_fd[0] = netdev_fd;
+	netdev->queue_fd[0] = netdev->tap_fd;
 	for (i=1; i <= NETDEV_MAX_QUEUES; i++) {
 		fd = &netdev->queue_fd[i];
-		error = open_queue_socket(netdev,i,fd);
+		error = open_queue_socket(netdev->name,i,fd);
 		if(error) {
 			return error;
 		}
@@ -810,6 +790,8 @@ error_already_set:
 void
 netdev_close(struct netdev *netdev)
 {
+	int i;
+
     if (netdev) {
         /* Bring down interface and drop promiscuous mode, if we brought up
          * the interface or enabled promiscuous mode. */
@@ -829,7 +811,8 @@ netdev_close(struct netdev *netdev)
         if (netdev->netdev_fd != netdev->tap_fd) {
             close(netdev->tap_fd);
         }
-		for (int i =1; i<= NETDEV_MAX_QUEUES; i++) {
+
+		for (i =1; i<= NETDEV_MAX_QUEUES; i++) {
 			close(netdev->queue_fd[i]);
 		}
         free(netdev);
@@ -871,11 +854,19 @@ netdev_recv(struct netdev *netdev, struct ofpbuf *buffer)
 	/* prepare to call recvfrom */
 	memset(&sll,0,sizeof sll);
 	sll_len = sizeof sll;
-		   
-    do {
-		n_bytes = recvfrom(netdev->tap_fd, ofpbuf_tail(buffer), (ssize_t)ofpbuf_tailroom(buffer),
-						   0, (struct sockaddr *)sll, &sll_len);
-    } while (n_bytes < 0 && errno == EINTR);
+
+	/* cannot execute recvfrom over a tap device */
+	if(!strncmp(netdev->name, "tap", 3)) {
+		do {
+			n_bytes = read(netdev->tap_fd, ofpbuf_tail(buffer), (ssize_t)ofpbuf_tailroom(buffer));
+		} while (n_bytes < 0 && errno == EINTR);
+	}
+	else {
+	    do {
+			n_bytes = recvfrom(netdev->tap_fd, ofpbuf_tail(buffer), (ssize_t)ofpbuf_tailroom(buffer),
+							   0, (struct sockaddr *)&sll, &sll_len);
+		} while (n_bytes < 0 && errno == EINTR);
+	}
     if (n_bytes < 0) {
         if (errno != EAGAIN) {
             VLOG_WARN_RL(&rl, "error receiving Ethernet packet on %s: %s",
@@ -888,7 +879,7 @@ netdev_recv(struct netdev *netdev, struct ofpbuf *buffer)
 		 * receive what others send, and need to filter them out.
 		 * TODO: can we install this as a BPF at kernel? */
 		if (sll.sll_pkttype == PACKET_OUTGOING) {
-			return EINTR;
+			return EAGAIN;
 		}
 
 
