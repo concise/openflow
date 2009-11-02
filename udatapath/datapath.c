@@ -41,7 +41,6 @@
 #include "chain.h"
 #include "csum.h"
 #include "flow.h"
-#include "netdev.h"
 #include "ofpbuf.h"
 #include "openflow/openflow.h"
 #include "openflow/nicira-ext.h"
@@ -524,12 +523,12 @@ output_all(struct datapath *dp, struct ofpbuf *buffer, int in_port, int flood)
         }
         if (prev_port != -1) {
             dp_output_port(dp, ofpbuf_clone(buffer), in_port, prev_port,
-                           false);
+                           0,false);
         }
         prev_port = p->port_no;
     }
     if (prev_port != -1)
-        dp_output_port(dp, buffer, in_port, prev_port, false);
+        dp_output_port(dp, buffer, in_port, prev_port, 0, false);
     else
         ofpbuf_delete(buffer);
 
@@ -537,14 +536,30 @@ output_all(struct datapath *dp, struct ofpbuf *buffer, int in_port, int flood)
 }
 
 static void
-output_packet(struct datapath *dp, struct ofpbuf *buffer, uint16_t out_port) 
+output_packet(struct datapath *dp, struct ofpbuf *buffer, uint16_t out_port, uint32_t queue_id) 
 {
+	uint16_t class_id;
+	struct sw_queue * q;
+	
     struct sw_port *p = lookup_port(dp, out_port);
     if (p && p->netdev != NULL) {
         if (!(p->config & OFPPC_PORT_DOWN)) {
-            if (!netdev_send(p->netdev, buffer)) {
+			/* avoid the queue lookup for best-effort traffic */
+			if(queue_id == 0) {
+				class_id = 0;
+			}
+			else {
+				q = lookup_queue(p, queue_id);
+				class_id = q ? q->class_id : 0;
+			}
+			
+            if (!netdev_send(p->netdev, buffer, class_id)) {
                 p->tx_packets++;
                 p->tx_bytes += buffer->size;
+				if(q) {
+					q->tx_packets++;
+					q->tx_bytes += buffer->size;
+				}
             } else {
                 p->tx_dropped++;
             }
@@ -553,54 +568,55 @@ output_packet(struct datapath *dp, struct ofpbuf *buffer, uint16_t out_port)
         return;
     }
 
-    ofpbuf_delete(buffer);
-    VLOG_DBG_RL(&rl, "can't forward to bad port %d\n", out_port);
+	ofpbuf_delete(buffer);
+    VLOG_DBG_RL(&rl, "can't forward to bad port %d (queue %d)\n", out_port, queue_id);
 }
 
-/* Takes ownership of 'buffer' and transmits it to 'out_port' on 'dp'.
+/** Takes ownership of 'buffer' and transmits it to 'out_port' on 'dp'.
  */
 void
 dp_output_port(struct datapath *dp, struct ofpbuf *buffer,
-               int in_port, int out_port, bool ignore_no_fwd UNUSED)
+               int in_port, int out_port, uint32_t queue_id, 
+			   bool ignore_no_fwd UNUSED)
 {
-
+	
     assert(buffer);
     switch (out_port) {
     case OFPP_IN_PORT:
-        output_packet(dp, buffer, in_port);
+        output_packet(dp, buffer, in_port, queue_id);
         break;
-
+		
     case OFPP_TABLE: {
         struct sw_port *p = lookup_port(dp, in_port);
-                if (run_flow_through_tables(dp, buffer, p)) {
-                        ofpbuf_delete(buffer);
+		if (run_flow_through_tables(dp, buffer, p)) {
+			ofpbuf_delete(buffer);
         }
         break;
     }
-
+		
     case OFPP_FLOOD:
         output_all(dp, buffer, in_port, 1);
         break;
-
+		
     case OFPP_ALL:
         output_all(dp, buffer, in_port, 0);
         break;
-
+		
     case OFPP_CONTROLLER:
         dp_output_control(dp, buffer, in_port, UINT16_MAX, OFPR_ACTION);
         break;
-
+		
     case OFPP_LOCAL:
     default:
         if (in_port == out_port) {
             VLOG_DBG_RL(&rl, "can't directly forward to input port");
             return;
         }
-        output_packet(dp, buffer, out_port);
+        output_packet(dp, buffer, out_port, queue_id);
         break;
     }
 }
-
+ 
 static void *
 make_openflow_reply(size_t openflow_len, uint8_t type,
                     const struct sender *sender, struct ofpbuf **bufferp)

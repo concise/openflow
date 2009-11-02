@@ -228,6 +228,10 @@ ofp_print_action(struct ds *string, const struct ofp_action_header *ah,
             sizeof(struct ofp_action_output),
             sizeof(struct ofp_action_output),
         },
+		[OFPAT_ENQUEUE] = {
+			sizeof(struct ofp_action_enqueue),
+			sizeof(struct ofp_action_enqueue),
+		},
         [OFPAT_SET_VLAN_VID] = {
             sizeof(struct ofp_action_vlan_vid),
             sizeof(struct ofp_action_vlan_vid),
@@ -294,7 +298,7 @@ ofp_print_action(struct ds *string, const struct ofp_action_header *ah,
         const struct openflow_action *act = &of_actions[type];
         if ((len < act->min_size) || (len > act->max_size)) {
             ds_put_format(string, 
-                    "***action %"PRIu16" wrong length: %zu***\n", type, len);
+						  "***action %"PRIu16" wrong length: %zu %zu %zu***\n", type, len, act->min_size, act->max_size);
             return -1;
         }
     }
@@ -317,6 +321,15 @@ ofp_print_action(struct ds *string, const struct ofp_action_header *ah,
         }
         break;
     }
+
+	case OFPAT_ENQUEUE: {
+		struct ofp_action_enqueue *ea = (struct ofp_action_enqueue *)ah;
+		uint16_t port = ntohs(ea->port);
+		uint32_t queue = ntohl(ea->queue_id);
+
+		ds_put_format(string, "enqueue:%"PRIu16":%"PRIu32,port,queue);
+		break;
+	}
 
     case OFPAT_SET_VLAN_VID: {
         struct ofp_action_vlan_vid *va = (struct ofp_action_vlan_vid *)ah;

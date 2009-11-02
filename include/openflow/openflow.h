@@ -891,10 +891,10 @@ struct ofp_action_enqueue {
     uint16_t type;            /* OFPAT_ENQUEUE */
     uint16_t len;             /* len is 12 */
     uint16_t port;            /* port that queue belongs */
-    uint8_t pad[2];           /* pad for 64-bit alignment */
+    uint8_t pad[6];           /* pad for 64-bit alignment */
     uint32_t queue_id;        /* where to enqueue the packets */
 };
-OFP_ASSERT(sizeof(struct ofp_action_enqueue) == 12);
+OFP_ASSERT(sizeof(struct ofp_action_enqueue) == 16);
 
 struct ofp_queue_stats_request {
     uint16_t port_no;        /* all ports if OFPT_NONE */

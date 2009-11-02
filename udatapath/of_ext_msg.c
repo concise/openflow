@@ -102,7 +102,7 @@ static int
 port_add_queue(struct sw_port *p, uint32_t queue_id, struct ofp_queue_prop_min_rate * mr)
 {
 	int queue_no;
-	for (queue_no = 1; queue_no < DP_MAX_QUEUES; queue_no++) {
+	for (queue_no = 1; queue_no < NETDEV_MAX_QUEUES; queue_no++) {
 		struct sw_queue *q = &p->queues[queue_no];
 		if(!q->port) {
 			return new_queue(p,q,queue_id,queue_no,mr);
@@ -142,14 +142,11 @@ recv_of_exp_queue_modify(struct datapath *dp,
 	port_no = ntohs(ofq_modify->port);
 	queue_id = ntohl(opq->queue_id);
 
-	VLOG_ERR("Modify queue %d at port %d",queue_id, port_no);
-
 	p = port_from_port_no(dp, port_no);
 	if(p){
 		q = queue_from_queue_id(p, queue_id);
 		if (q) {
 			/* queue exists - modify it */
-			VLOG_ERR("Modifying existing queue %d at port %d", queue_id, port_no);
 			error = netdev_change_class(p->netdev,q->class_id, ntohs(mr->rate));
 			if (error) {
 				VLOG_ERR("Failed to update queue %d", queue_id);
@@ -163,7 +160,6 @@ recv_of_exp_queue_modify(struct datapath *dp,
 		}
 		else {
 			/* create new queue */
-			VLOG_ERR("Create new queue at port %d : id:%d, rate:%d",port_no, queue_id, ntohs(mr->rate));
 			port_add_queue(p,queue_id, mr);
 			q = queue_from_queue_id(p, queue_id);
 			error = netdev_setup_class(p->netdev,q->class_id, ntohs(mr->rate));
@@ -190,11 +186,9 @@ int of_ext_recv_msg(struct datapath *dp, const struct sender *sender,
     switch (ntohl(ofexth->header.subtype)) {
     case OFP_EXT_QUEUE_MODIFY: {
 		recv_of_exp_queue_modify(dp,sender,oh);
-		VLOG_ERR("Received OFP_EXT_QUEUE_MODIFY command");
 		return 0;
     }
 	case OFP_EXT_QUEUE_DELETE: {
-		VLOG_ERR("Received OFP_EXT_QUEUE_DELETE command");
 		return 0;
     }
     default:
