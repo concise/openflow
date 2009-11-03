@@ -407,7 +407,7 @@ struct neighbor_probe_payload
   /** Datapath id of this switch.
    */
   uint64_t datapath_id;
-  /** Minimum time of silence between neighbor is disconnected.
+  /** Minimum time in seconds of silence between neighbor is disconnected.
    */
   uint16_t interval;
 } __attribute__((packed));
