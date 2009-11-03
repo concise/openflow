@@ -750,6 +750,7 @@ dp_send_flow_end(struct datapath *dp, struct sw_flow *flow,
     nfe->header.subtype = htonl(NXT_FLOW_END);
 
     flow_fill_match(&nfe->match, &flow->key.flow, flow->key.wildcards);
+    nfe->cookie = htonll(flow->cookie);
 
     nfe->priority = htons(flow->priority);
     nfe->reason = reason;
@@ -807,6 +808,7 @@ fill_flow_stats(struct ofpbuf *buffer, struct sw_flow *flow,
     ofs->match.tp_src    = flow->key.flow.tp_src;
     ofs->match.tp_dst    = flow->key.flow.tp_dst;
     ofs->duration        = htonl((now - flow->created) / 1000);
+    ofs->cookie          = htonll(flow->cookie);
     ofs->priority        = htons(flow->priority);
     ofs->idle_timeout    = htons(flow->idle_timeout);
     ofs->hard_timeout    = htons(flow->hard_timeout);
@@ -1028,6 +1030,7 @@ add_flow(struct datapath *dp, const struct sender *sender,
     }
 
     /* Fill out flow. */
+    flow->cookie = ntohll(ofm->cookie);
     flow->idle_timeout = ntohs(ofm->idle_timeout);
     flow->hard_timeout = ntohs(ofm->hard_timeout);
     flow->send_flow_rem = (ntohs(ofm->flags) & OFPFF_SEND_FLOW_REM) ? 1 : 0;
@@ -1102,6 +1105,7 @@ mod_flow(struct datapath *dp, const struct sender *sender,
                       strict, ofm->actions, actions_len,
                       (ntohs(ofm->flags) & OFPFF_EMERG) ? 1 : 0)) {
         /* Fill out flow. */
+        flow->cookie = ntohll(ofm->cookie);
         flow->idle_timeout = ntohs(ofm->idle_timeout);
         flow->hard_timeout = ntohs(ofm->hard_timeout);
         flow->send_flow_rem = (ntohs(ofm->flags) & OFPFF_SEND_FLOW_REM) ? 1 : 0;

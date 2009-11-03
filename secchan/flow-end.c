@@ -207,6 +207,7 @@ send_ofp_expired(const struct nx_flow_end *nfe, const struct flow_end_data *fe)
         ofe->reason = OFPRR_DELETE;
     }
     /* 'duration' is in seconds, but we keeping track of milliseconds. */
+    ofe->cookie = nfe->cookie;
     ofe->duration = htonl((ntohll(nfe->end_time)-ntohll(nfe->init_time))/1000);
     ofe->idle_timeout = nfe->idle_timeout;
     ofe->packet_count = nfe->packet_count;
