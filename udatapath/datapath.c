@@ -1834,6 +1834,7 @@ recv_queue_get_config_request(struct datapath *dp, const struct sender *sender,
 		if (!p ||  (p->port_no != port_no)) {
 			dp_send_error_msg(dp, sender, OFPET_QUEUE_OP_FAILED, OFPQOFC_BAD_PORT,
 							  oh, ntohs(ofq_request->header.length));
+			goto error;
 		}
 		ofq_reply = make_openflow_reply(sizeof *ofq_reply, OFPT_QUEUE_GET_CONFIG_REPLY,
 										sender, &buffer);
@@ -1844,6 +1845,11 @@ recv_queue_get_config_request(struct datapath *dp, const struct sender *sender,
 		}
 		send_openflow_buffer(dp, buffer, sender);
 	}
+	else {
+		dp_send_error_msg(dp, sender, OFPET_QUEUE_OP_FAILED, OFPQOFC_BAD_PORT, 
+						  oh, ntohs(ofq_request->header.length));
+	}
+ error:
 	return 0;
 }
 
