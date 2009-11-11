@@ -119,5 +119,7 @@ void dp_output_port(struct datapath *, struct ofpbuf *, int in_port,
 					int out_port, uint32_t queue_id, bool ignore_no_fwd);
 void dp_output_control(struct datapath *, struct ofpbuf *, int in_port,
         size_t max_len, int reason);
+struct sw_port * dp_lookup_port(struct datapath *, uint16_t);
+struct sw_queue * dp_lookup_queue(struct sw_port *, uint32_t);
 
 #endif /* datapath.h */

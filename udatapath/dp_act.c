@@ -62,9 +62,9 @@ validate_queue(struct datapath *dp UNUSED, const struct sw_flow_key *key,
 {
 	struct ofp_action_enqueue *ea = (struct ofp_action_enqueue *)ah;
 
-	/* the enqueue action is valid only for datapath ports. 
-	 * TODO: what are we doing with OFPP_ALL and flood ?*/
-	if (ntohs(ea->port) > OFPP_MAX) {
+	/* enqueue action is illegal with virtual ports */
+	/* TODO(yiannisy): upate the spec */
+	if (ntohs(ea->port) > OFPP_MAX && ntohs(ea->port) != OFPP_IN_PORT) {
 		return OFPBAC_BAD_OUT_PORT;
 	}
 	return ACT_VALIDATION_OK;

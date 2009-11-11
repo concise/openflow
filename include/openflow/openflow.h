@@ -601,7 +601,7 @@ enum ofp_error_type {
     OFPET_BAD_REQUEST,          /* Request was not understood. */
     OFPET_BAD_ACTION,           /* Error in action description. */
     OFPET_FLOW_MOD_FAILED,      /* Problem modifying flow entry. */
-    OFPET_QUEUE_OP              /* Queue operation return code */
+    OFPET_QUEUE_OP_FAILED       /* Queue operation return code */
 };
 
 /* ofp_error_msg 'code' values for OFPET_HELLO_FAILED.  'data' contains an
@@ -632,7 +632,8 @@ enum ofp_bad_action_code {
     OFPBAC_BAD_VENDOR_TYPE,    /* Unknown action type for vendor id. */
     OFPBAC_BAD_OUT_PORT,       /* Problem validating output action. */
     OFPBAC_BAD_ARGUMENT,       /* Bad action argument. */
-    OFPBAC_EPERM               /* Permissions error. */
+    OFPBAC_EPERM,              /* Permissions error. */
+	OFPBAC_BAD_QUEUE
 };
 
 /* ofp_error_msg 'code' values for OFPET_FLOW_MOD_FAILED.  'data' contains
@@ -644,6 +645,14 @@ enum ofp_flow_mod_failed_code {
     OFPFMFC_EPERM,              /* Permissions error. */
     OFPFMFC_BAD_EMERG_TIMEOUT   /* Flow not added because of non-zero idle/hard
                                  * timeout. */
+};
+
+/* ofp_error msg 'code' values for OFPET_QUEUE_OP_FAILED. 'data' contains
+ * at least the first 64 bytes of the failed request */
+enum ofp_queue_op_failed_code {
+	OFPQOFC_BAD_PORT,           /* 'parent' port does not exist */
+	OFPQOFC_BAD_QUEUE,          /*  queue does not exist */
+	OFPQOFC_EPERM
 };
 
 /* OFPT_ERROR: Error message (datapath -> controller). */

@@ -140,16 +140,16 @@ uint32_t save_buffer(struct ofpbuf *);
 static struct ofpbuf *retrieve_buffer(uint32_t id);
 static void discard_buffer(uint32_t id);
 
-static struct sw_port *
-lookup_port(struct datapath *dp, uint16_t port_no) 
+struct sw_port *
+dp_lookup_port(struct datapath *dp, uint16_t port_no) 
 {
     return (port_no < DP_MAX_PORTS ? &dp->ports[port_no]
             : port_no == OFPP_LOCAL ? dp->local_port
             : NULL);
 }
 
-static struct sw_queue *
-lookup_queue(struct sw_port *p, uint32_t queue_id)
+struct sw_queue *
+dp_lookup_queue(struct sw_port *p, uint32_t queue_id)
 {
 	struct sw_queue *q;
 
@@ -541,7 +541,7 @@ output_packet(struct datapath *dp, struct ofpbuf *buffer, uint16_t out_port, uin
 	uint16_t class_id;
 	struct sw_queue * q;
 	
-    struct sw_port *p = lookup_port(dp, out_port);
+    struct sw_port *p = dp_lookup_port(dp, out_port);
     if (p && p->netdev != NULL) {
         if (!(p->config & OFPPC_PORT_DOWN)) {
 			/* avoid the queue lookup for best-effort traffic */
@@ -549,8 +549,14 @@ output_packet(struct datapath *dp, struct ofpbuf *buffer, uint16_t out_port, uin
 				class_id = 0;
 			}
 			else {
-				q = lookup_queue(p, queue_id);
-				class_id = q ? q->class_id : 0;
+				/* silently drop the packet if queue doesn't exist */
+				q = dp_lookup_queue(p, queue_id);
+				if(q) {
+					class_id = q->class_id;
+				}
+				else {
+					goto error;
+				}
 			}
 			
             if (!netdev_send(p->netdev, buffer, class_id)) {
@@ -568,8 +574,9 @@ output_packet(struct datapath *dp, struct ofpbuf *buffer, uint16_t out_port, uin
         return;
     }
 
+ error:
 	ofpbuf_delete(buffer);
-    VLOG_DBG_RL(&rl, "can't forward to bad port %d (queue %d)\n", out_port, queue_id);
+    VLOG_DBG_RL(&rl, "can't forward to bad port:queue(%d:%d)\n", out_port, queue_id);
 }
 
 /** Takes ownership of 'buffer' and transmits it to 'out_port' on 'dp'.
@@ -587,7 +594,7 @@ dp_output_port(struct datapath *dp, struct ofpbuf *buffer,
         break;
 		
     case OFPP_TABLE: {
-        struct sw_port *p = lookup_port(dp, in_port);
+        struct sw_port *p = dp_lookup_port(dp, in_port);
 		if (run_flow_through_tables(dp, buffer, p)) {
 			ofpbuf_delete(buffer);
         }
@@ -760,7 +767,7 @@ dp_send_features_reply(struct datapath *dp, const struct sender *sender)
 void
 update_port_flags(struct datapath *dp, const struct ofp_port_mod *opm)
 {
-    struct sw_port *p = lookup_port(dp, ntohs(opm->port_no));
+    struct sw_port *p = dp_lookup_port(dp, ntohs(opm->port_no));
 
     /* Make sure the port id hasn't changed since this was sent */
     if (!p || memcmp(opm->hw_addr, netdev_get_etheraddr(p->netdev),
@@ -1494,7 +1501,7 @@ queue_stats_dump(struct datapath *dp, void *state,
 {
 	struct queue_stats_state *s = state;
 	struct sw_queue *q;
-	struct sw_port *p = lookup_port(dp, s->port);
+	struct sw_port *p = dp_lookup_port(dp, s->port);
 	if(p) {
 		if (s->queue_id == OFPQ_NONE) {
 			LIST_FOR_EACH(q, struct sw_queue, node, &p->queue_list) {
@@ -1502,7 +1509,7 @@ queue_stats_dump(struct datapath *dp, void *state,
 			}
 		}
 		else {
-			q = lookup_queue(p, s->queue_id);
+			q = dp_lookup_queue(p, s->queue_id);
 			if (q) {
 				dump_queue_stats(q, buffer);
 			}
@@ -1804,20 +1811,30 @@ recv_queue_get_config_request(struct datapath *dp, const struct sender *sender,
 	ofq_request = (struct ofp_queue_get_config_request *)oh;
 	port_no = ntohs(ofq_request->port);
 
-	/* Find port under query */
-	LIST_FOR_EACH(p, struct sw_port, node, &dp->port_list) {
-		if(p->port_no == port_no) {
-			break;
+	if(port_no == OFPP_ALL) {
+		LIST_FOR_EACH(p, struct sw_port, node, &dp->port_list) {
+			/* do not send for virtual ports */
+			if(p->port_no < OFPP_MAX) {
+				ofq_reply = make_openflow_reply(sizeof *ofq_reply, OFPT_QUEUE_GET_CONFIG_REPLY,
+												sender, &buffer);
+				ofq_reply->port = htons(p->port_no);
+				LIST_FOR_EACH(q, struct sw_queue, node, &p->queue_list) {
+					struct ofp_packet_queue * opq = ofpbuf_put_zeros(buffer, sizeof *opq);
+					fill_queue_desc(buffer, q, opq);
+				}
+				send_openflow_buffer(dp, buffer, sender);
+			}
 		}
 	}
-	/* if the port under query doesn't exist, send an error */
-	if (!p ||  (p->port_no != port_no)) {
-		// TODO define appropriate error message
-		dp_send_error_msg(dp, sender, OFPET_BAD_ACTION, OFPBAC_BAD_OUT_PORT,
-						  oh, ntohs(ofq_request->header.length));
+	else if(port_no < OFPP_MAX) {
+		/* Find port under query */
+		p = dp_lookup_port(dp,port_no);
 
-	}
-	else {
+		/* if the port under query doesn't exist, send an error */
+		if (!p ||  (p->port_no != port_no)) {
+			dp_send_error_msg(dp, sender, OFPET_QUEUE_OP_FAILED, OFPQOFC_BAD_PORT,
+							  oh, ntohs(ofq_request->header.length));
+		}
 		ofq_reply = make_openflow_reply(sizeof *ofq_reply, OFPT_QUEUE_GET_CONFIG_REPLY,
 										sender, &buffer);
 		ofq_reply->port = htons(port_no);
@@ -1827,7 +1844,6 @@ recv_queue_get_config_request(struct datapath *dp, const struct sender *sender,
 		}
 		send_openflow_buffer(dp, buffer, sender);
 	}
-
 	return 0;
 }
 

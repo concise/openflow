@@ -38,44 +38,9 @@
 #include "netdev.h"
 #include "datapath.h"
 
-/* TODO: Remove when development is over */
+/* TODO(yiannisy): Remove when development is over */
 #define THIS_MODULE VLM_slicing
 #include "vlog.h"
-
-/** Search the datapath for a specific port.
- * @param port_no specified port
- * @param dp the datapath to search
- * @return port if found, NULL otherwise
- */
-static struct sw_port *
-port_from_port_no(struct datapath *dp,uint16_t port_no) 
-{
-	struct sw_port * p;
-	LIST_FOR_EACH(p, struct sw_port, node, &dp->port_list) {
-		if(p->port_no == port_no){
-			return p;
-		}
-	}
-	return NULL;
-}
-
-/** Search the port for a specific queue.
- * @param queue_id specified queue id
- * @param p the port to query
- * @return queue if found, NULL otherwise
- */
-static struct sw_queue *
-queue_from_queue_id(struct sw_port *p, uint32_t queue_id)
-{
-	struct sw_queue *q;
-
-	LIST_FOR_EACH(q, struct sw_queue, node, &p->queue_list) {
-		if(q->queue_id == queue_id) {
-			return q;
-		}
-	}
-	return NULL;
-}
 
 static int
 new_queue(struct sw_port * port, struct sw_queue * queue, 
@@ -111,6 +76,41 @@ port_add_queue(struct sw_port *p, uint32_t queue_id, struct ofp_queue_prop_min_r
 	return EXFULL;
 }
 
+static int 
+port_delete_queue(struct sw_port *p UNUSED, struct sw_queue *q)
+{
+	list_remove(&q->node);
+	memset(q,'\0', sizeof *q);
+	return 0;
+}
+
+static void
+recv_of_exp_queue_delete(struct datapath *dp,
+						 const struct sender *sender UNUSED,
+						 const void *oh)
+{
+	struct sw_port *p;
+	struct sw_queue *q;
+	struct openflow_queue_command_header * ofq_delete;
+	struct ofp_packet_queue *opq;
+
+	uint16_t port_no;
+	uint32_t queue_id;
+
+	ofq_delete = (struct openflow_queue_command_header *)oh;
+	opq = (struct ofp_packet_queue *)ofq_delete->body;
+	port_no = ntohs(ofq_delete->port);
+	queue_id = ntohl(opq->queue_id);
+
+	p = dp_lookup_port(dp,port_no);
+	if(p) {
+		q = dp_lookup_queue(p,queue_id);
+		if(q) {
+			port_delete_queue(p,q);
+		}
+	}
+}
+
 /** Modifies/adds a queue. It first search if a queue with
  * id exists for this port. If yes it modifies it, otherwise adds
  * a ndw configuration.
@@ -142,18 +142,18 @@ recv_of_exp_queue_modify(struct datapath *dp,
 	port_no = ntohs(ofq_modify->port);
 	queue_id = ntohl(opq->queue_id);
 
-	p = port_from_port_no(dp, port_no);
+	p = dp_lookup_port(dp, port_no);
 	if(p){
-		q = queue_from_queue_id(p, queue_id);
+		q = dp_lookup_queue(p, queue_id);
 		if (q) {
 			/* queue exists - modify it */
 			error = netdev_change_class(p->netdev,q->class_id, ntohs(mr->rate));
 			if (error) {
 				VLOG_ERR("Failed to update queue %d", queue_id);
-				/* TODO: send appropriate error */
+				dp_send_error_msg(dp, sender, OFPET_QUEUE_OP_FAILED, OFPQOFC_EPERM,
+								  oh, ntohs(ofq_modify->header.header.length));
 			}
 			else {
-				/* TODO : Should call tc here to modify the queue */
 				q->property = ntohs(mr->prop_header.property);
 				q->min_rate = ntohs(mr->rate);
 			}
@@ -161,15 +161,18 @@ recv_of_exp_queue_modify(struct datapath *dp,
 		else {
 			/* create new queue */
 			port_add_queue(p,queue_id, mr);
-			q = queue_from_queue_id(p, queue_id);
+			q = dp_lookup_queue(p, queue_id);
 			error = netdev_setup_class(p->netdev,q->class_id, ntohs(mr->rate));
 			if (error) {
 				VLOG_ERR("Failed to configure queue %d", queue_id);
-				/* TODO: send appropriate error */
+				dp_send_error_msg(dp, sender, OFPET_QUEUE_OP_FAILED, OFPQOFC_BAD_QUEUE,
+								  oh, ntohs(ofq_modify->header.header.length));
 			}
 		}
 	}
 	else {
+        dp_send_error_msg(dp, sender, OFPET_QUEUE_OP_FAILED, OFPQOFC_BAD_PORT,
+						  oh, ntohs(ofq_modify->header.header.length));
 		VLOG_ERR("Failed to create/modify queue - port %d doesn't exist",port_no);
 	}
 }
@@ -189,6 +192,7 @@ int of_ext_recv_msg(struct datapath *dp, const struct sender *sender,
 		return 0;
     }
 	case OFP_EXT_QUEUE_DELETE: {
+		recv_of_exp_queue_delete(dp,sender,oh);
 		return 0;
     }
     default:
