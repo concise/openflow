@@ -213,7 +213,7 @@ netdev_setup_root_class(const struct netdev *netdev, uint16_t class_id, uint16_t
 	netdev_name = netdev->name;
 
 	/* we need to translate from .1% to kbps */
-	/* TODO : why netdev->speed doesn't report correct value? */
+	/* TODO(yiannisy) : why netdev->speed doesn't report correct value? */
 	//	actual_rate = (rate*netdev->speed)/1000;
 	actual_rate = (rate*TC_MAX_RATE)/1000;
 
@@ -245,7 +245,7 @@ netdev_setup_class(const struct netdev *netdev, uint16_t class_id, uint16_t rate
 	netdev_name = netdev->name;
 
 	/* we need to translate from .1% to kbps */
-	/* TODO : why netdev->speed doesn't report correct value? */
+	/* TODO(yiannisy) : why netdev->speed doesn't report correct value? */
 	//	actual_rate = (rate*netdev->speed)/1000;
 	actual_rate = (rate*TC_MAX_RATE)/1000;
 
@@ -276,7 +276,7 @@ netdev_change_class(const struct netdev *netdev, uint16_t class_id, uint16_t rat
 	netdev_name = netdev->name;
 
 	/* we need to translate from .1% to kbps */
-	/* TODO : why netdev->speed doesn't report correct value? */
+	/* TODO(yiannisy) : why netdev->speed doesn't report correct value? */
 	//	actual_rate = (rate*netdev->speed)/1000;
 	actual_rate = (rate*TC_MAX_RATE)/1000;
 
@@ -877,7 +877,7 @@ netdev_recv(struct netdev *netdev, struct ofpbuf *buffer)
 		
 		/* we have multiple raw sockets at the same interface, so we also 
 		 * receive what others send, and need to filter them out.
-		 * TODO: can we install this as a BPF at kernel? */
+		 * TODO(yiannisy): can we install this as a BPF at kernel? */
 		if (sll.sll_pkttype == PACKET_OUTGOING) {
 			return EAGAIN;
 		}
