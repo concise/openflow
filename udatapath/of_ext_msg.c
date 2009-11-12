@@ -111,7 +111,7 @@ recv_of_exp_queue_delete(struct datapath *dp,
 	}
 }
 
-/** Modifies/adds a queue. It first search if a queue with
+/** Modifies/adds a queue. It first searches if a queue with
  * id exists for this port. If yes it modifies it, otherwise adds
  * a ndw configuration.
  *

@@ -49,8 +49,8 @@ Multiple of these flags may be set simultaneously.
 \label{cts:qos}
 \qosupd{An OpenFlow switch supports limited QoS through a simple queuing
 mechanism. A queue is attached to a port and can be used to map flows
-on it. Flows that are mapped to a specific queue inherit its
-characteristics based on queue's configuration. 
+on it. Flows mapped to a specific queue will be treated according to
+that queue's configuration (i.e. min rate).
 \\\\
 Configuration of a
 queue takes place outside the OpenFlow protocol, either through the
@@ -100,9 +100,9 @@ An \verb|action_output| has the following fields:
 The \verb|max_len| indicates the maximum amount of data from a packet that should be sent when the port is \verb|OFPP_CONTROLLER|.  If \verb|max_len| is zero, the switch must send a zero-size \verb|packet_in| message.  The \verb|port| specifies the physical port from which packets should be sent. 
  \\\\
 \qosupd{The enqueue action is used to map a flow to a queue, where we assume
-  that the queue is already configured. ACTION\_ENQUEUE directly
-  associates the flow with the specific queue and override any
-  behavior that might be associated with TOS or VLAN\_PCP bits. 
+  that the queue is already configured. ACTION\_ENQUEUE enqueues
+  packets for this flow on the specified queue, regardless of TOS and
+  VLAN\_PCP bits. 
   The packet should not change after an enqueue action. If the switch
   needs to set TOS/PCP bits for internal handling, the original values
   should be restored before sending the packet out. 
@@ -288,8 +288,9 @@ The body of the reply consists of an array of the following:
 The switch should return a value of -1 for unavailable counters.
 
 \paragraph{\qosupd{Queue Statistics}}
-\qosupd{Information about queues is requested with OFPST\_QUEUE stats request
-type. The request body consists of a uint16\_t port\_no field
+\qosupd{The OFPST\_QUEUE stats request message provides information
+  for queue configuration and related statistics for one or more ports.
+  The request body consists of a uint16\_t port\_no field
 identifying the port and a 64-bit identifier for the queue. OFPT\_NONE
 refers to all ports, while UINT64\_MAX refers to all queues configured
 at a port. 

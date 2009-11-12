@@ -242,7 +242,7 @@ usage(void)
            "  del-flows SWITCH [FLOW]     delete matching FLOWs\n"
            "  monitor SWITCH              print packets received from SWITCH\n"
            "  execute SWITCH CMD [ARG...] execute CMD with ARGS on SWITCH\n"
-           "Queue Ops:  Q: queue-id; P: port-id; BW: .1 percent bandwidth\n"
+           "Queue Ops:  Q: queue-id; P: port-id; BW: perthousand bandwidth\n"
            "  add-queue SWITCH P Q [BW]   add queue (with min bandwidth)\n"
            "  mod-queue SWITCH P Q BW     modify queue min bandwidth\n"
            "  del-queue SWITCH P Q        delete queue\n"
@@ -285,7 +285,6 @@ static void run(int retval, const char *message, ...)
     }
 }
 
-
 #ifdef HAVE_NETLINK
 /* Netlink-only commands. */
 
@@ -1562,8 +1561,8 @@ parse_queue_params(int argc, char *argv[], uint16_t *port, uint32_t *q_id,
         return -1;
     }
 
-    *port = OFPP_NONE;
-    *q_id = OFPQ_NONE;
+    *port = OFPP_ALL;
+    *q_id = OFPQ_ALL;
     if (argc > 2) {
         *port = str_to_u32(argv[2]);
     }
