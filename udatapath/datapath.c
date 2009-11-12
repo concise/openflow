@@ -67,11 +67,11 @@ extern char sw_desc;
 extern char serial_num;
 
 /* Capabilities supported by this implementation. */
-#define OFP_SUPPORTED_CAPABILITIES ( OFPC_FLOW_STATS \
-        | OFPC_TABLE_STATS \
-  	    | OFPC_PORT_STATS \
-		| OFPC_QUEUE_STATS \
-        | OFPC_MULTI_PHY_TX )
+#define OFP_SUPPORTED_CAPABILITIES ( OFPC_FLOW_STATS		\
+									 | OFPC_TABLE_STATS		\
+									 | OFPC_PORT_STATS		\
+									 | OFPC_QUEUE_STATS		\
+									 | OFPC_MULTI_PHY_TX )
 
 /* Actions supported by this implementation. */
 #define OFP_SUPPORTED_ACTIONS ( (1 << OFPAT_OUTPUT)         \
@@ -1503,7 +1503,7 @@ queue_stats_dump(struct datapath *dp, void *state,
 	struct sw_queue *q;
 	struct sw_port *p = dp_lookup_port(dp, s->port);
 	if(p) {
-		if (s->queue_id == OFPQ_NONE) {
+		if (s->queue_id == OFPQ_ALL) {
 			LIST_FOR_EACH(q, struct sw_queue, node, &p->queue_list) {
 				dump_queue_stats(q,buffer);
 			}

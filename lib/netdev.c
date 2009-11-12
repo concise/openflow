@@ -385,7 +385,7 @@ do_remove_qdisc(const char *netdev_name)
 	snprintf(command, sizeof(command), COMMAND_DEL_DEV_QDISC, netdev_name);
 	system(command);
 
-	/* there is no need for a device to already be configured. therefore no need to indicate 
+	/* There is no need for a device to already be configured. Therefore no need to indicate 
 	 * any error */
 	return 0;
 }
@@ -403,27 +403,27 @@ netdev_setup_slicing(struct netdev *netdev)
 	int * fd;
 	int error;
 	char * netdev_name;
-
+	
 	netdev_name = netdev->name;
-
+	
 	/* tap (local) device should not have
 	 * queue configuration - do nothing */
     if (!strncmp(netdev_name, "tap", 3)) {
         return 0;
 	}
-
+	
 	/* remove any previous queue configuration for this device */
 	error = do_remove_qdisc(netdev_name);
 	if(error) {
 		return error;
 	}
-
+	
 	/* Configure tc queue discipline to allow slicing queues */
 	error = do_setup_qdisc(netdev_name);
 	if (error) {
 		return error;
 	}
-
+	
 	/* This define a root class for the queue disc. In order to allow spare bandwidth to be used
 	 * efficiently, we need all the classes under a root class. For details, refer to :
 	 * http://luxik.cdi.cz/~devik/qos/htb/ */
@@ -438,7 +438,7 @@ netdev_setup_slicing(struct netdev *netdev)
 	if (error) {
 		return error;
 	}
-
+	
 	/* the tc backend has been configured. Now, we need to create sockets that match
 	 * the queue configuration. We need one socket per queue, plus one for default traffic.
 	 * queue-attached sockets are only for outgoing traffic. Data are received only at the 
@@ -447,7 +447,7 @@ netdev_setup_slicing(struct netdev *netdev)
 	 * queues using the skb->priority field. Having no access to sk_buffs from userspace, the
 	 * only way to do the mapping is through the SO_PRIORITY option of the socket. This 
 	 * dictates the usage of one socket per queue. */
-
+	
 	/* the first socket is the default. non-sense, but makes life easier when start enumerating
 	 * from one. */
 	netdev->queue_fd[0] = netdev->tap_fd;

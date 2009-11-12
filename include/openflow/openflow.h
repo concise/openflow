@@ -108,8 +108,6 @@ enum ofp_type {
     OFPT_GET_CONFIG_REQUEST,  /* Controller/switch message */
     OFPT_GET_CONFIG_REPLY,    /* Controller/switch message */
     OFPT_SET_CONFIG,          /* Controller/switch message */
-    OFPT_QUEUE_GET_CONFIG_REQUEST,  /* Controller/switch message */
-    OFPT_QUEUE_GET_CONFIG_REPLY,    /* Controller/switch message */
 
     /* Asynchronous messages. */
     OFPT_PACKET_IN,           /* Async message */
@@ -127,7 +125,12 @@ enum ofp_type {
 
     /* Barrier messages. */
     OFPT_BARRIER_REQUEST,     /* Controller/switch message */
-    OFPT_BARRIER_REPLY        /* Controller/switch message */
+    OFPT_BARRIER_REPLY,       /* Controller/switch message */
+
+	/* Queue Configuration messages. */
+    OFPT_QUEUE_GET_CONFIG_REQUEST,  /* Controller/switch message */
+    OFPT_QUEUE_GET_CONFIG_REPLY     /* Controller/switch message */
+
 };
 
 /* Header on all OpenFlow packets. */
@@ -840,7 +843,7 @@ struct ofp_vendor_header {
 OFP_ASSERT(sizeof(struct ofp_vendor_header) == 12);
 
 /* All ones is used to indicate all queues in a port (for stats retrieval) */
-#define OFPQ_NONE      0xffffffff
+#define OFPQ_ALL      0xffffffff
 
 /* Min rate > 1000 means not configured */
 #define OFPQ_MIN_RATE_UNCFG      0xffff
@@ -906,9 +909,9 @@ struct ofp_action_enqueue {
 OFP_ASSERT(sizeof(struct ofp_action_enqueue) == 16);
 
 struct ofp_queue_stats_request {
-    uint16_t port_no;        /* all ports if OFPT_NONE */
+    uint16_t port_no;        /* all ports if OFPT_ALL */
     uint8_t pad[2];          /* Align to 32-bits. */
-    uint32_t queue_id;       /* all queues if OFP_QUEUE_NONE */
+    uint32_t queue_id;       /* all queues if OFPQ_ALL */
 };
 OFP_ASSERT(sizeof(struct ofp_queue_stats_request) == 8);
 
