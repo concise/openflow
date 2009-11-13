@@ -72,11 +72,11 @@ validate_queue(struct datapath *dp UNUSED, const struct sw_flow_key *key,
 
 static void
 do_output(struct datapath *dp, struct ofpbuf *buffer, int in_port,
-          size_t max_len, int out_port, uint16_t class_id, 
+          size_t max_len, int out_port, uint32_t queue_id, 
 		  bool ignore_no_fwd)
 {
     if (out_port != OFPP_CONTROLLER) {
-        dp_output_port(dp, buffer, in_port, out_port, class_id, ignore_no_fwd);
+        dp_output_port(dp, buffer, in_port, out_port, queue_id, ignore_no_fwd);
     } else {
         dp_output_control(dp, buffer, in_port, max_len, OFPR_ACTION);
     }
@@ -481,7 +481,7 @@ void execute_actions(struct datapath *dp, struct ofpbuf *buffer,
      * freeing the original buffer is wasteful.  So the following code is
      * slightly obscure just to avoid that. */
     int prev_port;
-	int prev_queue;
+	uint32_t prev_queue;
     size_t max_len = UINT16_MAX;
     uint16_t in_port = ntohs(key->flow.in_port);
     uint8_t *p = (uint8_t *)actions;

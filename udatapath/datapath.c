@@ -540,8 +540,10 @@ output_packet(struct datapath *dp, struct ofpbuf *buffer, uint16_t out_port, uin
 {
 	uint16_t class_id;
 	struct sw_queue * q;
-	
-    struct sw_port *p = dp_lookup_port(dp, out_port);
+	struct sw_port *p;
+    
+	q = NULL;
+	p = dp_lookup_port(dp, out_port);
     if (p && p->netdev != NULL) {
         if (!(p->config & OFPPC_PORT_DOWN)) {
 			/* avoid the queue lookup for best-effort traffic */
