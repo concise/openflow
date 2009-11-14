@@ -69,7 +69,7 @@ specific type and configuration.
 Each queue property description starts with a common header:
 \input{struct/ofp_queue_prop_header}
 ofp\_queue is the structure that fully describes a queue:
-\input{struct/ofp_queue}
+\input{struct/ofp_packet_queue}
 
 Currently, there is only a minimum-rate type queue, described by the
 ofp\_queue\_prop\_min\_rate structure :
@@ -291,8 +291,8 @@ The switch should return a value of -1 for unavailable counters.
 \qosupd{The OFPST\_QUEUE stats request message provides information
   for queue configuration and related statistics for one or more ports.
   The request body consists of a uint16\_t port\_no field
-identifying the port and a 64-bit identifier for the queue. OFPT\_NONE
-refers to all ports, while UINT64\_MAX refers to all queues configured
+identifying the port and a 64-bit identifier for the queue. OFPT\_ALL
+refers to all ports, while OFPQ\_ALL refers to all queues configured
 at a port. 
 
 \input{struct/ofp_queue_stats_request}
