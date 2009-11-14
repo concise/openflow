@@ -127,7 +127,7 @@ enum ofp_type {
     OFPT_BARRIER_REQUEST,     /* Controller/switch message */
     OFPT_BARRIER_REPLY,       /* Controller/switch message */
 
-	/* Queue Configuration messages. */
+    /* Queue Configuration messages. */
     OFPT_QUEUE_GET_CONFIG_REQUEST,  /* Controller/switch message */
     OFPT_QUEUE_GET_CONFIG_REPLY     /* Controller/switch message */
 
@@ -178,7 +178,7 @@ enum ofp_capabilities {
     OFPC_MULTI_PHY_TX   = 1 << 4,  /* Supports transmitting through multiple
                                       physical interfaces */
     OFPC_IP_REASM       = 1 << 5,  /* Can reassemble IP fragments. */
-	OFPC_QUEUE_STATS    = 1 << 6   /* Queue statistics */
+    OFPC_QUEUE_STATS    = 1 << 6   /* Queue statistics */
 };
 
 /* Flags to indicate behavior of the physical port.  These flags are
@@ -636,7 +636,7 @@ enum ofp_bad_action_code {
     OFPBAC_BAD_OUT_PORT,       /* Problem validating output action. */
     OFPBAC_BAD_ARGUMENT,       /* Bad action argument. */
     OFPBAC_EPERM,              /* Permissions error. */
-	OFPBAC_BAD_QUEUE
+    OFPBAC_BAD_QUEUE
 };
 
 /* ofp_error_msg 'code' values for OFPET_FLOW_MOD_FAILED.  'data' contains
@@ -653,9 +653,9 @@ enum ofp_flow_mod_failed_code {
 /* ofp_error msg 'code' values for OFPET_QUEUE_OP_FAILED. 'data' contains
  * at least the first 64 bytes of the failed request */
 enum ofp_queue_op_failed_code {
-	OFPQOFC_BAD_PORT,           /* 'parent' port does not exist */
-	OFPQOFC_BAD_QUEUE,          /*  queue does not exist */
-	OFPQOFC_EPERM
+    OFPQOFC_BAD_PORT,           /* 'parent' port does not exist */
+    OFPQOFC_BAD_QUEUE,          /*  queue does not exist */
+    OFPQOFC_EPERM
 };
 
 /* OFPT_ERROR: Error message (datapath -> controller). */
