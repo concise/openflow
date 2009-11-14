@@ -239,7 +239,7 @@ netdev_setup_class(const struct netdev *netdev, uint16_t class_id, uint16_t rate
 	netdev_name = netdev->name;
 
 	/* we need to translate from .1% to kbps */
-	actual_rate = (rate*netdev->speed)/1000;
+	actual_rate = rate*netdev->speed;
 
 	snprintf(command, sizeof(command), COMMAND_ADD_CLASS, netdev->name, TC_QDISC, TC_ROOT_CLASS, TC_QDISC, class_id, actual_rate, netdev->speed*1000);
 	if(system(command) != 0) {
@@ -268,7 +268,7 @@ netdev_change_class(const struct netdev *netdev, uint16_t class_id, uint16_t rat
 	netdev_name = netdev->name;
 
 	/* we need to translate from .1% to kbps */
-	actual_rate = (rate*netdev->speed)/1000;
+	actual_rate = rate*netdev->speed;
 
 	snprintf(command, sizeof(command), COMMAND_CHANGE_CLASS, netdev->name, TC_QDISC, TC_ROOT_CLASS, TC_QDISC, class_id, actual_rate, netdev->speed*1000 );
 	if(system(command) != 0) {
