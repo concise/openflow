@@ -192,10 +192,6 @@ get_ipv6_address(const char *name, struct in6_addr *in6)
  * It has min_rate = 0. This is a placeholder for best-effort traffic
  * without any bandwidth guarantees */
 #define TC_DEFAULT_CLASS 0xfffe
-/* ceil defaults to the same value as min_rate if not configured.
- * make sure that there is no ceil by explicitly defning the max-rate
- * to 1Gbps */
-#define TC_MAX_RATE 1000000
 #define TC_MIN_RATE 1
 /* This configures an HTB qdisc under the defined device. */
 #define COMMAND_ADD_DEV_QDISC "/sbin/tc qdisc add dev %s root handle %x: htb default %x"
@@ -213,11 +209,9 @@ netdev_setup_root_class(const struct netdev *netdev, uint16_t class_id, uint16_t
 	netdev_name = netdev->name;
 
 	/* we need to translate from .1% to kbps */
-	/* TODO(yiannisy) : why netdev->speed doesn't report correct value? */
-	//	actual_rate = (rate*netdev->speed)/1000;
-	actual_rate = (rate*TC_MAX_RATE)/1000;
+	actual_rate = rate*netdev->speed;
 
-	snprintf(command, sizeof(command), COMMAND_ADD_CLASS, netdev->name, TC_QDISC,0,TC_QDISC, class_id, actual_rate, TC_MAX_RATE);
+	snprintf(command, sizeof(command), COMMAND_ADD_CLASS, netdev->name, TC_QDISC,0,TC_QDISC, class_id, actual_rate, netdev->speed*1000);
 	if(system(command) != 0) {
 		VLOG_ERR("Problem configuring root class %d for device %s",class_id, netdev_name);
 		return -1;
@@ -245,11 +239,9 @@ netdev_setup_class(const struct netdev *netdev, uint16_t class_id, uint16_t rate
 	netdev_name = netdev->name;
 
 	/* we need to translate from .1% to kbps */
-	/* TODO(yiannisy) : why netdev->speed doesn't report correct value? */
-	//	actual_rate = (rate*netdev->speed)/1000;
-	actual_rate = (rate*TC_MAX_RATE)/1000;
+	actual_rate = (rate*netdev->speed)/1000;
 
-	snprintf(command, sizeof(command), COMMAND_ADD_CLASS, netdev->name, TC_QDISC, TC_ROOT_CLASS, TC_QDISC, class_id, actual_rate, TC_MAX_RATE);
+	snprintf(command, sizeof(command), COMMAND_ADD_CLASS, netdev->name, TC_QDISC, TC_ROOT_CLASS, TC_QDISC, class_id, actual_rate, netdev->speed*1000);
 	if(system(command) != 0) {
 		VLOG_ERR("Problem configuring class %d for device %s",class_id, netdev_name);
 		return -1;
@@ -276,11 +268,9 @@ netdev_change_class(const struct netdev *netdev, uint16_t class_id, uint16_t rat
 	netdev_name = netdev->name;
 
 	/* we need to translate from .1% to kbps */
-	/* TODO(yiannisy) : why netdev->speed doesn't report correct value? */
-	//	actual_rate = (rate*netdev->speed)/1000;
-	actual_rate = (rate*TC_MAX_RATE)/1000;
+	actual_rate = (rate*netdev->speed)/1000;
 
-	snprintf(command, sizeof(command), COMMAND_CHANGE_CLASS, netdev->name, TC_QDISC, TC_ROOT_CLASS, TC_QDISC, class_id, actual_rate, TC_MAX_RATE);
+	snprintf(command, sizeof(command), COMMAND_CHANGE_CLASS, netdev->name, TC_QDISC, TC_ROOT_CLASS, TC_QDISC, class_id, actual_rate, netdev->speed*1000 );
 	if(system(command) != 0) {
 		VLOG_ERR("Problem configuring class %d for device %s",class_id, netdev_name);
 		return -1;
@@ -472,6 +462,7 @@ do_ethtool(struct netdev *netdev)
     netdev->supported = 0;
     netdev->advertised = 0;
     netdev->peer = 0;
+	netdev->speed = SPEED_1000;  /* default to 1Gbps link */
 
     memset(&ifr, 0, sizeof ifr);
     strncpy(ifr.ifr_name, netdev->name, sizeof ifr.ifr_name);
@@ -583,6 +574,9 @@ do_ethtool(struct netdev *netdev)
         if (ecmd.autoneg) {
             netdev->curr |= OFPPF_AUTONEG;
         }
+
+		netdev->speed = ecmd.speed;
+
     } else {
         VLOG_DBG("ioctl(SIOCETHTOOL) failed: %s", strerror(errno));
     }
