@@ -455,6 +455,7 @@ static gint ofp_switch_config_miss_send_len = -1;
 
 static gint ofp_flow_mod              = -1;
 /* field: ofp_match */
+static gint ofp_flow_mod_cookie       = -1;
 static gint ofp_flow_mod_command      = -1;
 static gint ofp_flow_mod_idle_timeout = -1;
 static gint ofp_flow_mod_hard_timeout = -1;
@@ -462,7 +463,6 @@ static gint ofp_flow_mod_priority     = -1;
 static gint ofp_flow_mod_buffer_id    = -1;
 static gint ofp_flow_mod_out_port     = -1;
 static gint ofp_flow_mod_flags[NUM_FLOW_MOD_FLAGS];
-static gint ofp_flow_mod_reserved     = -1;
 static gint ofp_flow_mod_actions      = -1;
 
 static gint ofp_port_mod      = -1;
@@ -502,6 +502,7 @@ static gint ofp_flow_stats_reply_length       = -1;
 static gint ofp_flow_stats_reply_table_id     = -1;
 /* field: ofp_match */
 static gint ofp_flow_stats_reply_duration     = -1;
+static gint ofp_flow_stats_reply_cookie       = -1;
 static gint ofp_flow_stats_reply_priority     = -1;
 static gint ofp_flow_stats_reply_idle_timeout = -1;
 static gint ofp_flow_stats_reply_hard_timeout = -1;
@@ -564,6 +565,7 @@ static gint ofp_packet_in_data_hdr  = -1;
 
 static gint ofp_flow_removed              = -1;
 /* field: ofp_match */
+static gint ofp_flow_removed_cookie       = -1;
 static gint ofp_flow_removed_priority     = -1;
 static gint ofp_flow_removed_reason       = -1;
 static gint ofp_flow_removed_duration     = -1;
@@ -1269,6 +1271,9 @@ void proto_register_openflow()
         { &ofp_flow_mod,
           { "Flow Modification", "of.fm", FT_NONE, BASE_NONE, NO_STRINGS, NO_MASK, "Flow Modification", HFILL } },
 
+        { &ofp_flow_mod_cookie,
+          { "Cookie", "of.fm_cookie", FT_UINT64, BASE_HEX, NO_STRINGS, NO_MASK, "Cookie", HFILL } },
+
         { &ofp_flow_mod_command,
           { "Command", "of.fm_command", FT_UINT16, BASE_DEC, VALS(names_flow_mod_command), NO_MASK, "Command", HFILL } },
 
@@ -1296,13 +1301,12 @@ void proto_register_openflow()
         { &ofp_flow_mod_flags[2],
           { "Install flow into emergecy flow table", "of.fm_flags", FT_UINT16, BASE_DEC, VALS(names_choice), OFPFF_EMERG, "Install flow into emergency flow table", HFILL } },
 
-        { &ofp_flow_mod_reserved,
-          { "Reserved", "of.fm_reserved", FT_UINT32, BASE_DEC, NO_STRINGS, NO_MASK, "Reserved", HFILL } },
-
-
         /* AM:  Flow Removed */
         { &ofp_flow_removed,
           { "Flow Removed", "of.fe", FT_NONE, BASE_NONE, NO_STRINGS, NO_MASK, "Flow Removed", HFILL } },
+
+        { &ofp_flow_removed_cookie,
+          { "Cookie", "of.fe_cookie", FT_UINT64, BASE_HEX, NO_STRINGS, NO_MASK, "Cookie", HFILL } },
 
         { &ofp_flow_removed_priority,
           { "Priority", "of.fe_priority", FT_UINT16, BASE_DEC, NO_STRINGS, NO_MASK, "Priority", HFILL } },
@@ -1497,6 +1501,9 @@ void proto_register_openflow()
 
         { &ofp_flow_stats_reply_duration,
           { "Flow Duration (sec)", "of.stats_flow_duration", FT_UINT32, BASE_DEC, NO_STRINGS, NO_MASK, "Time Flow has Been Alive (sec)", HFILL } },
+
+        { &ofp_flow_stats_reply_cookie,
+          { "Cookie", "of.stats_flow_cookie", FT_UINT64, BASE_HEX, NO_STRINGS, NO_MASK, "Cookie", HFILL } },
 
         { &ofp_flow_stats_reply_priority,
           { "Priority", "of.stats_flow_priority", FT_UINT16, BASE_DEC, NO_STRINGS, NO_MASK, "Priority", HFILL } },
@@ -2630,6 +2637,7 @@ static void dissect_openflow_message(tvbuff_t *tvb, packet_info *pinfo, proto_tr
             type_tree = proto_item_add_subtree(type_item, ett_ofp_flow_removed);
 
             dissect_match(type_tree, type_item, tvb, pinfo, &offset);
+            add_child(type_tree, ofp_flow_removed_cookie, tvb, &offset, 8);
             add_child(type_tree, ofp_flow_removed_priority, tvb, &offset, 2);
             add_child(type_tree, ofp_flow_removed_reason, tvb, &offset, 1);
             dissect_pad(type_tree, &offset, 1);
@@ -2701,6 +2709,7 @@ static void dissect_openflow_message(tvbuff_t *tvb, packet_info *pinfo, proto_tr
             type_tree = proto_item_add_subtree(type_item, ett_ofp_flow_mod);
 
             dissect_match(type_tree, type_item, tvb, pinfo, &offset);
+            add_child(type_tree, ofp_flow_mod_cookie, tvb, &offset, 8);
             add_child(type_tree, ofp_flow_mod_command, tvb, &offset, 2);
             add_child(type_tree, ofp_flow_mod_idle_timeout, tvb, &offset, 2);
             add_child(type_tree, ofp_flow_mod_hard_timeout, tvb, &offset, 2);
@@ -2719,7 +2728,6 @@ static void dissect_openflow_message(tvbuff_t *tvb, packet_info *pinfo, proto_tr
             /* add the output port */
             dissect_port(type_tree, ofp_flow_mod_out_port, tvb, &offset );
             dissect_flow_mod_flags(tvb, pinfo, type_tree, &offset);
-            add_child(type_tree, ofp_flow_mod_reserved, tvb, &offset, 4);
             dissect_action_array(tvb, pinfo, type_tree, len, offset);
             break;
         }
@@ -2829,6 +2837,7 @@ static void dissect_openflow_message(tvbuff_t *tvb, packet_info *pinfo, proto_tr
                     dissect_pad(flow_tree, &offset, 1);
                     dissect_match(flow_tree, flow_item, tvb, pinfo, &offset);
                     add_child(flow_tree, ofp_flow_stats_reply_duration, tvb, &offset, 4);
+                    add_child(flow_tree, ofp_flow_stats_reply_cookie, tvb, &offset, 8);
                     add_child(flow_tree, ofp_flow_stats_reply_priority, tvb, &offset, 2);
                     add_child(flow_tree, ofp_flow_stats_reply_idle_timeout, tvb, &offset, 2);
                     add_child(flow_tree, ofp_flow_stats_reply_hard_timeout, tvb, &offset, 2);
